@@ -354,7 +354,7 @@ function rainyunrgs_Renew($params)
             "billing_cycle" => $params["billingcycle"],
             "renew_duration" => $duration
         ];
-        writeLog($log);
+        writeLogRgs($log);
         return $log;
     } else {
         $log = [
@@ -365,12 +365,12 @@ function rainyunrgs_Renew($params)
             "billing_cycle" => $params["billingcycle"],
             "renew_duration" => $duration
         ];
-        writeLog($log);
+        writeLogRgs($log);
         return $log;
     }
 }
 
-function writeLog($log)
+function writeLogRgs($log)
 {
     // 获取当前运行目录
     $currentDir = getcwd();
