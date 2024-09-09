@@ -424,8 +424,7 @@ function rainyunrgs_Reinstall($params)
     }
 }
 
-$config_field = ["cpu","memory","net_out","base_disk","data_disk"]
-
+$config_field = ["cpu","memory","net_out","base_disk","data_disk"];
 
 function rainyunrgs_CreateAccount($params)
 {
