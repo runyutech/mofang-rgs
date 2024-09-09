@@ -20,7 +20,7 @@ function rainyunrgs_ConfigOptions()
 		["type" => "text", "name" => "subtype", "description" => "*服务器类型(VPS是kvm,暂不支持面板)", "default" => "kvm", "key" => "subtype"],
 		["type" => "text", "name" => "plan_id", "description" => "*计费套餐(plan_id,在雨云购买页显示)", "key" => "plan_id"],
 		["type" => "yesno", "name" => "try", "description" => "是否试用", "default" => false, "key" => "try"],
-		["type" => "text", "name" => "with_eip_num", "description" => "独立ip数量", "default" => "0", "key" => "with_eip_num"]
+		["type" => "text", "name" => "with_eip_num", "description" => "独立ip数量", "default" => "0", "key" => "with_eip_num"],
 		["type" => "yesno", "name" => "cpu_limit_mode", "description" => "用余额结算电费", "default" => "false", "key" => "cpu_limit_mode"], 
 	];
 }
