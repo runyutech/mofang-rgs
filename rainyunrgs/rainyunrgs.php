@@ -20,7 +20,7 @@ function rainyunrgs_ConfigOptions()
 		["type" => "text", "name" => "subtype", "description" => "*服务器类型(VPS是kvm,暂不支持面板)", "default" => "kvm", "key" => "subtype"],
 		["type" => "text", "name" => "plan_id", "description" => "*计费套餐(plan_id,在雨云购买页显示)", "key" => "plan_id"],
 		["type" => "yesno", "name" => "try", "description" => "是否试用", "default" => false, "key" => "try"],
-		["type" => "text", "name" => "with_eip_num", "description" => "独立ip数量", "default" => "0", "key" => "with_eip_num"]
+		["type" => "text", "name" => "with_eip_num", "description" => "独立ip数量", "default" => "0", "key" => "with_eip_num"],
 		["type" => "yesno", "name" => "cpu_limit_mode", "description" => "用余额结算电费", "default" => "false", "key" => "cpu_limit_mode"], 
 	];
 }
@@ -426,8 +426,10 @@ function rainyunrgs_Reinstall($params)
 
 $config_field = ["cpu","memory","net_out","base_disk","data_disk"];
 
+
 function rainyunrgs_CreateAccount($params)
 {
+	global $config_field;
     $vserverid = rainyunrgs_GetServerid($params);
     if (!empty($vserverid)) {
         return "已开通,不能重复开通";
@@ -442,25 +444,25 @@ function rainyunrgs_CreateAccount($params)
         $duration = "6";
     } elseif ($params["billingcycle"] == "ontrial") {
         $duration = "1";
-        $params["configoptions"]["try"] = true
+        $params["configoptions"]["try"] = true;
     } else {
         $duration = "1";
     }
-	$params["configoptions"]["duration"] = $duration
+	$params["configoptions"]["duration"] = $duration;
 
     $header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
     $url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/";
 
-	$params["configoptions"]["with_eip_num"] = (int)$params["configoptions"]["with_eip_num"]
+	$params["configoptions"]["with_eip_num"] = (int)$params["configoptions"]["with_eip_num"];
 
-	$params["configoptions"]["config"] = []
+	$params["configoptions"]["config"] = [];
 
 	// 具体配置项
 	foreach($config_field as $k) {
-		$params["configoptions"]["config"][$k] = $params["configoptions"][$k]
+		$params["configoptions"]["config"][$k] = $params["configoptions"][$k];
 	}
 
-    $post_data = $params["configoptions"]
+    $post_data = $params["configoptions"];
     $res = rainyunrgs_Curl($url, $post_data, 10, "POST", $header);
     if (isset($res["code"]) && $res["code"] == 200) {
         $server_id = $res["data"]["ID"];
@@ -683,6 +685,7 @@ function rainyunrgs_Reboot($params)
 
 function rainyunrgs_ChangePackage($params)
 {
+	global $config_field;
 	$vserverid = rainyunrgs_GetServerid($params);
 	if(empty($vserverid)){
         $vserverid = intval($params['old_configoptions']['customfields']['vserverid']);
@@ -702,10 +705,10 @@ function rainyunrgs_ChangePackage($params)
 	}
 	// $old_plan_id = $params['old_configoptions']['plan_id'];
 	$plan_id = $params['configoptions']['plan_id'];
-	$dest_config = []
+	$dest_config = [];
 	// 具体配置项
 	foreach($config_field as $k) {
-		$dest_config[$k] = $params["configoptions"][$k]
+		$dest_config[$k] = $params["configoptions"][$k];
 	}
 
 	$url2 = $params["server_host"] . "/product/rgs/" . $vserverid . "/scale";
