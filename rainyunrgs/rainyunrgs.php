@@ -168,7 +168,7 @@ function rainyunrgs_ChartData($params){
 
 		return $result;
 	}else{
-		return ['status'=>'error', 'msg'=>'数据获取失败'];
+		return ['status'=>'error', 'msg'=>'数据获取失败'.$res["message"]];
 	}
 }
 
@@ -207,7 +207,7 @@ function rainyunrgs_ClientAreaOutput($params, $key)
 {
 	$vserverid = rainyunrgs_GetServerid($params);
 	if (empty($vserverid)) {
-		return "产品参数错误";
+		return "参数错误,可能是创建不成功";
 	}
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
 	$detail_url = $params["server_host"] . "/product/rgs/" . $vserverid;
@@ -391,7 +391,7 @@ function rainyunrgs_Reinstall($params)
 {
     $vserverid = rainyunrgs_GetServerid($params);
     if (empty($vserverid)) {
-        return "产品参数错误";
+        return "参数错误,可能是创建不成功";
     }
     if (empty($params["reinstall_os"])) {
         return "操作系统错误";
@@ -528,7 +528,7 @@ function rainyunrgs_Status($params)
 {
 	$vserverid = rainyunrgs_GetServerid($params);
 	if (empty($vserverid)) {
-		return "产品参数错误";
+		return "参数错误,可能是创建不成功";
 	}
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
 	$detail_url = $params["server_host"] . "/product/rgs/" . $vserverid;
@@ -572,7 +572,7 @@ function rainyunrgs_Sync($params)
 {
     $vserverid = rainyunrgs_GetServerid($params);
 	if(empty($vserverid)){
-		return '产品参数错误';
+		return '参数错误,可能是创建不成功';
 	}
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
 	$url = $params["server_host"] . "/product/rgs/" . $vserverid;
@@ -618,7 +618,7 @@ function rainyunrgs_On($params)
 {
     $vserverid = rainyunrgs_GetServerid($params);
     if (empty($vserverid)) {
-        return "产品参数错误";
+        return "参数错误,可能是创建不成功";
     }
 
     // 获取服务器当前状态
@@ -649,7 +649,7 @@ function rainyunrgs_Off($params)
 {
 	$vserverid = rainyunrgs_GetServerid($params);
 	if (empty($vserverid)) {
-		return "产品参数错误";
+		return "参数错误,可能是创建不成功";
 	}
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
 	$url = $params["server_host"] . "/product/rgs/" . $vserverid . "/stop";
@@ -668,7 +668,7 @@ function rainyunrgs_Reboot($params)
 	if(empty($vserverid)){
         $vserverid = intval($params['old_configoptions']['customfields']['vserverid']);
         if (empty($vserverid)){
-            return '产品参数错误';
+            return '参数错误,可能是创建不成功';
         }
 	}
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
@@ -690,7 +690,7 @@ function rainyunrgs_ChangePackage($params)
 	if(empty($vserverid)){
         $vserverid = intval($params['old_configoptions']['customfields']['vserverid']);
         if (empty($vserverid)){
-            return '产品参数错误';
+            return '参数错误,可能是创建不成功';
         }
 	}
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
@@ -730,7 +730,7 @@ function rainyunrgs_Vnc($params){
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
 	$res = rainyunrgs_Curl($url, null, 30, "GET", $header);
 	if ($res["code"] != 200){
-	    return ["status" => "error", "msg" => "连接 VNC 请求失败，请稍后再试"];
+	    return ["status" => "error", "msg" => "连接 VNC 请求失败，请稍后再试:".$res["message"]];
 	}
 	$data = $res["data"];
 	$urlcs =  isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
@@ -776,7 +776,7 @@ function rainyunrgs_ssh($params){
 // function rainyunrgs_getCloudMonthFee($params){
 // 	$vserverid = rainyunrgs_GetServerid($params);
 // 	if (empty($vserverid)) {
-// 	    return ["status" => "error", "msg" => "产品参数错误"];
+// 	    return ["status" => "error", "msg" => "参数错误,可能是创建不成功"];
 // 	}
 // 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
 // 	$detail_url = $params["server_host"] . "/product/rgs/" . $vserverid;
@@ -821,7 +821,7 @@ function rainyunrgs_ssh($params){
 // function rainyunrgs_getCloudtzMonthFee($params){
 // 	$vserverid = rainyunrgs_GetServerid($params);
 // 	if (empty($vserverid)) {
-// 	    return ["status" => "error", "msg" => "产品参数错误"];
+// 	    return ["status" => "error", "msg" => "参数错误,可能是创建不成功"];
 // 	}
 // 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
 // 	$detail_url = $params["server_host"] . "/product/rgs/" . $vserverid;
@@ -931,7 +931,7 @@ function rainyunrgs_ssh($params){
 // function rainyunrgs_edisk($params){
 // 	$vserverid = rainyunrgs_GetServerid($params);
 // 	if (empty($vserverid)) {
-// 	    return ["status" => "error", "msg" => "产品参数错误"];
+// 	    return ["status" => "error", "msg" => "参数错误,可能是创建不成功"];
 // 	}
 // 	if ($params["billingcycle"] == "ontrial"){
 // 	    return ["status" => "error", "msg" => "试用无法调整硬盘"];
@@ -1093,7 +1093,7 @@ function rainyunrgs_ssh($params){
 // function rainyunrgs_trafficlimit($params){
 // 	$vserverid = rainyunrgs_GetServerid($params);
 // 	if (empty($vserverid)) {
-// 	    return ["status" => "error", "msg" => "产品参数错误"];
+// 	    return ["status" => "error", "msg" => "参数错误,可能是创建不成功"];
 // 	}
 //     $post = input('post.');
 // 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
@@ -1110,7 +1110,7 @@ function rainyunrgs_ssh($params){
 // function rainyunrgs_trafficcharge($params){
 // 	$vserverid = rainyunrgs_GetServerid($params);
 // 	if (empty($vserverid)) {
-// 	    return ["status" => "error", "msg" => "产品参数错误"];
+// 	    return ["status" => "error", "msg" => "参数错误,可能是创建不成功"];
 // 	}
 // 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
 // 	$detail_url = $params["server_host"] . "/product/rgs/" . $vserverid;
@@ -1208,7 +1208,7 @@ function rainyunrgs_GetServerid($params)
 function rainyunrgs_Curl($url = "", $data = [], $timeout = 30, $request = "POST", $header = [])
 {
 	$curl = curl_init();
-	if ($request == "GET") {
+	if ($request == "GET"&&$data) {
 		curl_setopt($curl, CURLOPT_URL, $url . "?" . http_build_query($data));
 	} else {
 		curl_setopt($curl, CURLOPT_URL, $url);
