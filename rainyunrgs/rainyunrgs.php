@@ -12,16 +12,13 @@ function rainyunrgs_ConfigOptions()
 		["type" => "text", "name" => "base_disk", "description" => "*系统盘", "key" => "base_disk"],
 		["type" => "text", "name" => "data_disk", "description" => "*数据盘", "key" => "data_disk"],
 		["type" => "text", "name" => "os_id", "description" => "*系统镜像ID", "key" => "os_id"],
-		["type" => "text", "name" => "duration", "description" => "*付款月数", "default" => "1", "key" => "duration"],
 		// ["type" => "text", "name" => "net_in", "description" => "下行带宽", "key" => "net_in"],
 		// ["type" => "text", "name" => "egg_type_id", "description" => "游戏类型ID", "key" => "egg_type_id"],
 		// ["type" => "text", "name" => "panel_user", "description" => "独立面板用户", "default" => "null", "key" => "panel_user"],
 		// ["type" => "text", "name" => "pay_mode", "description" => "*付款周期", "default" => "month", "key" => "pay_mode"],
 		["type" => "text", "name" => "subtype", "description" => "*服务器类型(VPS是kvm,暂不支持面板)", "default" => "kvm", "key" => "subtype"],
 		["type" => "text", "name" => "plan_id", "description" => "*计费套餐(plan_id,在雨云购买页显示)", "key" => "plan_id"],
-		["type" => "yesno", "name" => "try", "description" => "是否试用", "default" => false, "key" => "try"],
 		["type" => "text", "name" => "with_eip_num", "description" => "独立ip数量", "default" => "0", "key" => "with_eip_num"],
-		["type" => "yesno", "name" => "cpu_limit_mode", "description" => "用余额结算电费", "default" => "false", "key" => "cpu_limit_mode"], 
 	];
 }
 
@@ -424,8 +421,8 @@ function rainyunrgs_Reinstall($params)
     }
 }
 
+global $config_field;
 $config_field = ["cpu","memory","net_out","base_disk","data_disk"];
-
 
 function rainyunrgs_CreateAccount($params)
 {
@@ -454,15 +451,18 @@ function rainyunrgs_CreateAccount($params)
     $url = $params["server_host"] . "/product/rgs/";
 
 	$params["configoptions"]["with_eip_num"] = (int)$params["configoptions"]["with_eip_num"];
-
+	$params["configoptions"]["os_id"] = (int)$params["configoptions"]["os_id"];
+	$params["configoptions"]["plan_id"] = (int)$params["configoptions"]["plan_id"];
+	$params["configoptions"]["pay_mode"] = "month";
 	$params["configoptions"]["config"] = [];
 
 	// 具体配置项
 	foreach($config_field as $k) {
-		$params["configoptions"]["config"][$k] = $params["configoptions"][$k];
+		$params["configoptions"]["config"][$k] = (int)$params["configoptions"][$k];
 	}
 
     $post_data = $params["configoptions"];
+	
     $res = rainyunrgs_Curl($url, $post_data, 10, "POST", $header);
     if (isset($res["code"]) && $res["code"] == 200) {
         $server_id = $res["data"]["ID"];
@@ -708,7 +708,7 @@ function rainyunrgs_ChangePackage($params)
 	$dest_config = [];
 	// 具体配置项
 	foreach($config_field as $k) {
-		$dest_config[$k] = $params["configoptions"][$k];
+		$dest_config[$k] = (int)$params["configoptions"][$k];
 	}
 
 	$url2 = $params["server_host"] . "/product/rgs/" . $vserverid . "/scale";
