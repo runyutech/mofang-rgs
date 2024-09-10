@@ -210,7 +210,7 @@ function rainyunrgs_ClientAreaOutput($params, $key)
 		return "产品参数错误";
 	}
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-	$detail_url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid;
+	$detail_url = $params["server_host"] . "/product/rgs/" . $vserverid;
 	$res = rainyunrgs_Curl($detail_url, [], 10, "GET", $header);
 	if ($key == "NAT") {
 		return ["template" => "templates/NAT.html", "vars" => ["list" => $res["data"]["NatList"], "ip" => $res["data"]["Data"]["NatPublicIP"]]];
@@ -288,7 +288,7 @@ function rainyunrgs_addNat($params)
 	$post = input("post.");
 	$vserverid = rainyunrgs_GetServerid($params);
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-	$url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid . "/nat";
+	$url = $params["server_host"] . "/product/rgs/" . $vserverid . "/nat";
 	$post_data = "\n\n{\n    \"port_in\": " . trim($post["port_in"]) . ",\n    \"port_out\": " . trim($post["port_out"]) . ",\n    \"port_type\": \"" . trim($post["port_type"]) . "\"\n}\n\n";
 	$res = rainyunrgs_Curl($url, $post_data, 30, "POST", $header);
 	if (isset($res["code"]) && $res["code"] == 200) {
@@ -307,7 +307,7 @@ function rainyunrgs_delNat($params)
 	$post = input("post.");
 	$vserverid = rainyunrgs_GetServerid($params);
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-	$url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid . "/nat/?nat_id=" . trim($post["nat_id"]);
+	$url = $params["server_host"] . "/product/rgs/" . $vserverid . "/nat/?nat_id=" . trim($post["nat_id"]);
 	$res = rainyunrgs_Curl($url, [], 30, "DELETE", $header);
 	if (isset($res["code"]) && $res["code"] == 200) {
 		$description = sprintf("NAT转发删除成功");
@@ -337,11 +337,11 @@ function rainyunrgs_Renew($params)
         $duration = "1";
     }
     $header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-    $url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid . "/renew";
+    $url = $params["server_host"] . "/product/rgs/" . $vserverid . "/renew";
     $post_data = "\n\n{\n    \"duration\": " . $duration . ",\n    \"with_coupon_id\": 0\n}\n\n";
     $res = rainyunrgs_Curl($url, $post_data, 30, "POST", $header);
     if (isset($res["code"]) && $res["code"] == 200) {
-        $detail_url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid;
+        $detail_url = $params["server_host"] . "/product/rgs/" . $vserverid;
         $res1 = rainyunrgs_Curl($detail_url, [], 10, "GET", $header);
         $str = $res1["Data"]["ExpDate"];
         $str1 = $res1["data"]["Data"]["MonthPrice"];
@@ -397,7 +397,7 @@ function rainyunrgs_Reinstall($params)
         return "操作系统错误";
     }
     $header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-    $url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid . "/changeos";
+    $url = $params["server_host"] . "/product/rgs/" . $vserverid . "/changeos";
     $post_data = "\n\n{\n    \"os_id\": " . $params["reinstall_os"] . "\n}\n\n";
     $res = rainyunrgs_Curl($url, $post_data, 30, "POST", $header);
     if ($res["code"] == 200) {
@@ -451,7 +451,7 @@ function rainyunrgs_CreateAccount($params)
 	$params["configoptions"]["duration"] = $duration;
 
     $header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-    $url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/";
+    $url = $params["server_host"] . "/product/rgs/";
 
 	$params["configoptions"]["with_eip_num"] = (int)$params["configoptions"]["with_eip_num"];
 
@@ -467,7 +467,7 @@ function rainyunrgs_CreateAccount($params)
     if (isset($res["code"]) && $res["code"] == 200) {
         $server_id = $res["data"]["ID"];
         $sys_pwd = $res["data"]["DefaultPass"];
-        $detail_url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $server_id;
+        $detail_url = $params["server_host"] . "/product/rgs/" . $server_id;
         $res1 = rainyunrgs_Curl($detail_url, [], 10, "GET", $header);
         $natip = $res1["data"]["Data"]["NatPublicIP"];
         $ipv4 = $res1["data"]["Data"]["MainIPv4"];
@@ -531,7 +531,7 @@ function rainyunrgs_Status($params)
 		return "产品参数错误";
 	}
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-	$detail_url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid;
+	$detail_url = $params["server_host"] . "/product/rgs/" . $vserverid;
 	$res = rainyunrgs_Curl($detail_url, [], 10, "GET", $header);
 	if (isset($res["code"]) && $res["code"] == 200) {
 		if ($res["data"]["Data"]["Status"] == "running") {
@@ -628,7 +628,7 @@ function rainyunrgs_On($params)
     }
 
     $header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-    $url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid . "/start";
+    $url = $params["server_host"] . "/product/rgs/" . $vserverid . "/start";
     $post_data = [];
     $post_data["id"] = $vserverid;
     $res = rainyunrgs_Curl($url, $post_data, 10, "POST", $header);
@@ -652,7 +652,7 @@ function rainyunrgs_Off($params)
 		return "产品参数错误";
 	}
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-	$url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid . "/stop";
+	$url = $params["server_host"] . "/product/rgs/" . $vserverid . "/stop";
 	$post_data = [];
 	$post_data["id"] = $vserverid;
 	$res = rainyunrgs_Curl($url, $post_data, 10, "POST", $header);
@@ -672,7 +672,7 @@ function rainyunrgs_Reboot($params)
         }
 	}
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-	$url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid . "/reboot";
+	$url = $params["server_host"] . "/product/rgs/" . $vserverid . "/reboot";
 	$post_data = [];
 	$post_data["id"] = $vserverid;
 	$res = rainyunrgs_Curl($url, $post_data, 10, "POST", $header);
@@ -779,7 +779,7 @@ function rainyunrgs_ssh($params){
 // 	    return ["status" => "error", "msg" => "产品参数错误"];
 // 	}
 // 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-// 	$detail_url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid;
+// 	$detail_url = $params["server_host"] . "/product/rgs/" . $vserverid;
 // 	$res = rainyunrgs_Curl($detail_url, [], 10, "GET", $header);
 // 	$disk_ssd_unit_price = $params["configoptions"]["disk_ssd_unit_price"] ?: 0.4;
 // 	$disk_hdd_unit_price = $params["configoptions"]["disk_hdd_unit_price"] ?: 0.1;
@@ -824,7 +824,7 @@ function rainyunrgs_ssh($params){
 // 	    return ["status" => "error", "msg" => "产品参数错误"];
 // 	}
 // 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-// 	$detail_url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid;
+// 	$detail_url = $params["server_host"] . "/product/rgs/" . $vserverid;
 // 	$res = rainyunrgs_Curl($detail_url, [], 10, "GET", $header);
 // 	$disk_ssd_unit_price = $params["configoptions"]["disk_ssd_unit_price"] ?: 0.4;
 // 	$disk_hdd_unit_price = $params["configoptions"]["disk_hdd_unit_price"] ?: 0.1;
@@ -937,7 +937,7 @@ function rainyunrgs_ssh($params){
 // 	    return ["status" => "error", "msg" => "试用无法调整硬盘"];
 // 	}
 // 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-// 	$detail_url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid;
+// 	$detail_url = $params["server_host"] . "/product/rgs/" . $vserverid;
 // 	$res = rainyunrgs_Curl($detail_url, [], 10, "GET", $header);
 // 	$disk_ssd_unit_price = $params["configoptions"]["disk_ssd_unit_price"] ?: 0.4;
 // 	$disk_hdd_unit_price = $params["configoptions"]["disk_hdd_unit_price"] ?: 0.1;
@@ -1069,7 +1069,7 @@ function rainyunrgs_ssh($params){
 //         return ["status" => "error", "msg" => "调整了个寂寞"];
 //     }
 //     $wzml = ["actions"=>$ml];
-// 	$url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid ."/edisk";
+// 	$url = $params["server_host"] . "/product/rgs/" . $vserverid ."/edisk";
 // 	$res = rainyunrgs_Curl($url, json_encode($wzml), 10, "POST", $header);
 // 	if($res["code"] == 200){
 // 	    Db::table(config('database.prefix') . 'clients')->where('id', $params['uid'])->setDec('credit', $zzcost);
@@ -1097,7 +1097,7 @@ function rainyunrgs_ssh($params){
 // 	}
 //     $post = input('post.');
 // 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-// 	$url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid ."/traffic/limit";
+// 	$url = $params["server_host"] . "/product/rgs/" . $vserverid ."/traffic/limit";
 // 	$data = ["day_traffic_in_gb"=>(int)$post["day_traffic_in_gb"],"traffic_limit"=>(int)$post["traffic_limit"]];
 // 	$res = rainyunrgs_Curl($url, json_encode($data), 10, "POST", $header);
 // 	if($res["code"] == 200){
@@ -1113,7 +1113,7 @@ function rainyunrgs_ssh($params){
 // 	    return ["status" => "error", "msg" => "产品参数错误"];
 // 	}
 // 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-// 	$detail_url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid;
+// 	$detail_url = $params["server_host"] . "/product/rgs/" . $vserverid;
 // 	$res = rainyunrgs_Curl($detail_url, [], 10, "GET", $header);
 //     $post = input('post.');
 //     // $traffic300 = ($params["configoptions"]["traffic300"] ?: $res["data"]["Data"]["Plan"]["traffic_price"]["300"]) ?: 15;
@@ -1141,7 +1141,7 @@ function rainyunrgs_ssh($params){
 //     if($credit < $money){
 //         return ['status'=>'error', 'msg'=>"余额不足，请先充值余额"];
 //     }
-// 	$url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid ."/traffic/charge";
+// 	$url = $params["server_host"] . "/product/rgs/" . $vserverid ."/traffic/charge";
 // 	$data = ["traffic_in_gb"=>$traffic_in_gb];
 // 	$res = rainyunrgs_Curl($url, json_encode($data), 10, "POST", $header);
 // 	if($res["code"] == 200){
@@ -1209,18 +1209,9 @@ function rainyunrgs_Curl($url = "", $data = [], $timeout = 30, $request = "POST"
 {
 	$curl = curl_init();
 	if ($request == "GET") {
-	// 	$s = "";
-	// 	if (!empty($data)) {
-	// 		foreach ($data as $k => $v) {
-	// 			$s .= $k . "=" . urlencode($v) . "&";
-	// 		}
-	// 	}
-	// 	if ($s) {
-	// 		$s = "?" . trim($s, "&");
-	// 	}
-	// 	curl_setopt($curl, CURLOPT_URL, $url . $s);
-	// } else {
-		curl_setopt($curl, CURLOPT_URL, $url . "?" .http_build_query($data));
+		curl_setopt($curl, CURLOPT_URL, $url . "?" . http_build_query($data));
+	} else {
+		curl_setopt($curl, CURLOPT_URL, $url);
 	}
 	curl_setopt($curl, CURLOPT_TIMEOUT, $timeout);
 	curl_setopt($curl, CURLOPT_USERAGENT, "Mofang");
