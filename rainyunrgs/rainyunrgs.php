@@ -445,7 +445,7 @@ function rainyunrgs_CreateAccount($params)
     } else {
         $duration = "1";
     }
-	$params["configoptions"]["duration"] = $duration;
+	$params["configoptions"]["duration"] = (int)$duration;
 
     $header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
     $url = $params["server_host"] . "/product/rgs/";
