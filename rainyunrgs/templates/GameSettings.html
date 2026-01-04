@@ -1,0 +1,524 @@
+<style>
+.egg-typedropdown-menu {
+    width: 100%;
+    max-height: 350px;
+    min-width: 160px;
+    overflow-y: auto;
+}
+</style>
+<div class="row">
+    <div class="col-3">
+        <div class="nav flex-column nav-pills" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+            <a class="nav-link active" id="v-startup-command-tab" data-toggle="pill" href="#v-startup-command" role="tab" aria-controls="v-startup-command" aria-selected="true">启动命令</a>
+            <!-- <a class="nav-link" id="v-scheduled-task-tab" data-toggle="pill" href="#v-scheduled-task" role="tab" aria-controls="v-scheduled-task" aria-selected="false">计划任务</a>
+            <a class="nav-link" id="v-backup-and-restore-tab" data-toggle="pill" href="#v-backup-and-restore" role="tab" aria-controls="v-backup-and-restore" aria-selected="false">备份还原</a> -->
+            <a class="nav-link" id="v-mysql-tab" data-toggle="pill" href="#v-mysql" role="tab" aria-controls="v-mysql" aria-selected="false">MySQL数据库</a>
+            <a class="nav-link" id="v-sftp-tab" data-toggle="pill" href="#v-sftp" role="tab" aria-controls="v-sftp" aria-selected="false">SFTP</a>
+            <a class="nav-link" id="v-reinstall-tab" data-toggle="pill" href="#v-reinstall" role="tab" aria-controls="v-reinstall" aria-selected="false">重装/更新游戏</a>
+        </div>
+    </div>
+    <div class="col-9">
+        <div class="tab-content" id="v-pills-tabContent">
+            <div class="tab-pane fade show active" id="v-startup-command" role="tabpanel" aria-labelledby="v-startup-command-tab">
+                <div class="p-1">
+                    <div class="row">
+                        <h5 class="mb-1 pl-1"> 启动命令 </h5>
+                    </div><small class="text-secondary">设置面板启动时执行的命令</small>
+                    <div class="row w-100 mb-1 mt-1">
+                        <div class="col-md-4">
+                            <span>
+                                <fieldset class="form-group mb-0" id="startup-command-fieldset">
+                                    <div><span><textarea placeholder="启动命令" rows="3" wrap="soft" class="form-control" id="startup-command-textarea">{$k8s_panel_start_command}</textarea><small class="text-danger">&nbsp;</small></span></div>
+                                </fieldset>
+                            </span>
+                            <button type="button" class="btn mt-0 btn-primary btn-sm" id="startup-command-button">
+                                <div class="d-flex align-items-center"><span>保存</span></div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="v-scheduled-task" role="tabpanel" aria-labelledby="v-scheduled-task-tab">计划任务</div>
+            <div class="tab-pane fade" id="v-backup-and-restore" role="tabpanel" aria-labelledby="v-backup-and-restore">备份还原</div>
+            <div class="tab-pane fade" id="v-mysql" role="tabpanel" aria-labelledby="v-mysql-tab">
+                <div class="p-1">
+                    <div class="row">
+                        <div class="d-flex">
+                            <h5 class="mb-1 pl-1"> 数据库管理 </h5>
+                        </div>
+                    </div><small class="text-secondary">通过启用MySQL数据库功能，可用于作为插件的数据库，限制大小为5GiB，版本：MySQL5.7</small>
+                    <div class="row w-100 m-0 mb-1 mt-1">
+                        <div>
+                            <div class="b-overlay-wrap position-relative">
+                            {if $k8s_panel_database_setting}
+                                <div class="card shadow-none mb-0">
+                                    <div class="card-body p-0">
+                                        <p class="card-text">
+                                        <p class="mb-25"> 数据库地址地址： {$k8s_panel_database_host} <a href="#" target="_self" class="text-info text-nowrap copy-btn" data-clipboard-text="{$k8s_panel_database_host}"> &nbsp;<i class="fas fa-clone"></i></a></p>
+                                        <p class="mb-25"> 数据库名称： {$k8s_panel_database_setting.name} <a href="#" target="_self" class="text-info text-nowrap copy-btn" data-clipboard-text="{$k8s_panel_database_setting.name}"> &nbsp;<i class="fas fa-clone"></i></a></p>
+                                        <p class="mb-25"> 用户： {$k8s_panel_database_setting.username} <a href="#" target="_self" class="text-info text-nowrap copy-btn" data-clipboard-text="{$k8s_panel_database_setting.username}"> &nbsp;<i class="fas fa-clone"></i></a></p>
+                                        <p class="mb-25"> 密码： <span><span class="font-jbmono"> {$k8s_panel_database_setting.password} </span> &nbsp;</span><a href="#" target="_self" class="text-info text-nowrap copy-btn" data-clipboard-text="{$k8s_panel_database_setting.password}"> &nbsp;<i class="fas fa-clone"></i></a></p>
+                                        </p><button type="button" class="btn mr-1 btn-primary btn-sm" id="close-mysql"><i class="fas fa-lock"></i> 关闭数据库 </button>
+                                    </div>
+                                </div>
+                            {else/}
+                                <button type="button" class="btn mr-1 btn-primary btn-sm" id="start-mysql"> 开启数据库 </button>
+                            {/if}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="v-sftp" role="tabpanel" aria-labelledby="v-sftp-tab">
+                <div class="p-1">
+                    <div class="row">
+                        <div class="d-flex">
+                            <h5 class="mb-1 pl-1"> SFTP管理 </h5>
+                        </div>
+                    </div><small class="text-secondary">通过启用SFTP服务器功能，可以方便进行大文件的上传下载</small>
+                    <div class="row w-100 m-0 mb-1 mt-1">
+                        <div>
+                            <div class="b-overlay-wrap position-relative">
+                            {if $k8s_panel_sftp_setting}
+                                <div class="card shadow-none mb-0">
+                                    <div class="card-body p-0">
+                                        <p class="card-text">
+                                        <p class="mb-25"> 地址： sftp://{$k8s_panel_sftp_domain}:{$k8s_panel_sftp_setting.port} <a href="#" target="_self" class="text-info text-nowrap copy-btn" data-clipboard-text="sftp://{$k8s_panel_sftp_domain}:{$k8s_panel_sftp_setting.port}"> &nbsp;<i class="fas fa-clone"></i></a></p>
+                                        <p class="mb-25"> 用户： {$k8s_panel_sftp_setting.username} <a href="#" target="_self" class="text-info text-nowrap copy-btn" data-clipboard-text="{$k8s_panel_sftp_setting.username}"> &nbsp;<i class="fas fa-clone"></i></a></p>
+                                        <p class="mb-25"> 密码： <span><span class="font-jbmono"> {$k8s_panel_sftp_setting.password} </span> &nbsp;</span><a href="#" target="_self" class="text-info text-nowrap copy-btn" data-clipboard-text="{$k8s_panel_sftp_setting.password}"> &nbsp;<i class="fas fa-clone"></i></a></p>
+                                        </p><button type="button" class="btn mr-1 btn-primary btn-sm" id="close-sftp"><i class="fas fa-lock"></i> 关闭SFTP </button>
+                                    </div>
+                                </div>
+                            {else/}
+                                <button type="button" class="btn mr-1 btn-primary btn-sm" id="start-sftp"> 开启SFTP </button>
+                            {/if}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="v-reinstall" role="tabpanel" aria-labelledby="v-reinstall">
+                <h4 class="text-primary mb-1">重装/更新游戏</h4>
+                <hr>
+                <div class="mb-2" value="">
+                    <div class="current mb-2">
+                        <div class="b-overlay-wrap position-relative" style="min-height: 5rem;"><div class="row egg-list-card border rounded py-3"></div><div class="my-1"></div><div class="row egg-type-list-card border rounded py-3"></div></div>
+                    </div>
+                </div>
+                <fieldset class="form-group">
+                    
+                    <div>
+                        <div class="form-check custom-control"><input type="checkbox" class="form-check-input" value="true" id="ConfirmDiscard"><label class="form-check-label" for="ConfirmDiscard"> 确认操作并放弃除了backup目录以外的服务器数据（如需保留存档请勾选下方） </label></div>
+                        <div class="form-check custom-control"><input type="checkbox" class="form-check-input" value="true" id="retain"><label class="form-check-label" for="retain"> 保留原有存档数据和配置（更新或更换服务端时） </label></div>
+                        
+                        
+                    </div>
+                </fieldset>
+                <button type="button" class="btn px-5 mb-1 btn-warning" id="PerformSystemReinstallationOperation"><span>执行操作</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+<script> 
+$(document).ready(function() {
+    $.ajax({
+        type: "POST",
+        url: "{$MODULE_CUSTOM_API}",
+        data: { func: "egg"},
+        success: function(data) {
+            if (data.status == 200) {
+                var egg = data.data.egg.filter(function(item) {
+                    return !item.is_hidden;
+                }).sort(function(a, b) {
+                    return a.order - b.order;
+                });
+                var egg_type = data.data.egg_type.filter(function(item) {
+                    return !item.is_hidden;
+                }).sort(function(a, b) {
+                    if (a.order !== b.order) {
+                        return a.order - b.order;
+                    }
+                    return b.id - a.id;
+                });
+                var egg_server = data.data.egg_server.sort(function(a, b) {
+                    return a.order - b.order;
+                });
+                var egg_list = Array.from(
+                    new Map(
+                        egg.map(item => [
+                            item.title,
+                            {
+                                icon_url: item.icon_url,
+                                title: item.title
+                            }
+                        ])
+                    ).values()
+                );
+                egg_list.forEach(function(item){
+                    html = `
+        <div class="mb-1 col-lg-4">
+            <div class="py-1 px-0 out-card os-card border rounded-3 dropdown" data-title="${item.title}" data-toggle="dropdown">
+                <div class="d-flex align-items-center px-1 m-2"><img
+                        src="${item.icon_url}"
+                        height="40" class="egg-img-crisp">
+                    <div class="truncate ms-3">
+                        <div class="d-flex align-items-center text-nowrap">
+                            <h4 class="font-weight-bolder mb-0 text-nowrap egg_name"> ${item.title} </h4>
+                        </div>
+                        <p class="my-2 text-secondary"><span class="os_v"> 请选择版本 </span></span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-down"> <polyline points="6 9 12 15 18 9"></polyline> 
+                        </svg>
+                        </p>
+                    </div>
+                </div>
+                <div class="m-select dropdown-menu">
+                    <ul class="listbox" style="list-style-type: none; margin:0; padding:0;">
+                    <li><span class="dropdown-item loading">Loading...</span></li>
+                    </ul>
+                </div>
+                
+            </div>
+        </div>
+                    `;
+                    $('#v-reinstall .current .egg-list-card').append(html);
+                });
+                $('.os-card').off("click");
+                $('.os-card').on("click",function() {  
+                    var title = $(this).data("title");
+                    var $listbox = $(this).find('.dropdown-menu ul');
+                    var $os_v = $(this).find('.os_v');
+                    if($(this).find('.dropdown-item.loading').length > 0){
+                        $listbox.empty();  
+                        egg.forEach(function(it) {  
+                            if(it.title == title){
+                                $listbox.append('<li><span class="dropdown-item os-item" data-name="'+it.name+'">' + it.desc +'</span></li>');
+                            }
+                        });
+                    }
+                    $('.os-item').off("click");
+                    $('.os-item').on("click",function(){
+                        $('.os_v').html("请选择版本");
+                        $('.os-item').removeClass('active');
+                        $(this).addClass('active');
+                        $(".os-card .green-corner").remove();  
+                        var $newDiv = $('<div>').addClass('green-corner');  
+                        var $checkMarkDiv = $('<div>').addClass('check-mark');
+                        $newDiv.append($checkMarkDiv);  
+                        $(".os-card.shadow").removeClass("shadow");
+                        $(this).parents(".os-card").append($newDiv); 
+                        $(this).parents(".os-card").addClass('shadow');
+                        name = $(this).data("name");
+                        egg.forEach(function(its){
+                            if(its.name == name){
+                                $os_v.html('<span>' + its.desc +'</span>');
+                            }
+                        });
+                        
+                        $('#v-reinstall .current .egg-type-list-card').empty();
+                        egg_server.forEach(function(its){
+                            var foundItems = $.grep(egg_type, function(item) {
+                                return item.env && item.env.SERVER_TYPE === its.server;
+                            });
+                            if(its.egg_name == name && foundItems.length > 0){
+                                html = `
+                    <div class="mb-1 col-lg-4 egg_type_list">
+                        <div class="py-1 px-0 out-card egg-type-card border rounded-3 dropdown" data-server="${its.server}" data-toggle="dropdown">
+                            <div class="d-flex align-items-center px-1"><img
+                                    src="${its.icon_url}"
+                                    height="40" class="egg-img-crisp m-2">
+                                <div class="truncate ms-3">
+                                    <div class="d-flex align-items-center text-nowrap">
+                                        <h4 class="font-weight-bolder mb-0 text-nowrap egg_name"> ${its.server} </h4>
+                                    </div>
+                                    <p class="my-2 text-secondary"><span class="egg_type_v"> 请选择版本 </span></span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-down"> <polyline points="6 9 12 15 18 9"></polyline> 
+                                    </svg>
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="m-select dropdown-menu egg-typedropdown-menu">
+                                <ul class="listbox" style="list-style-type: none; margin:0; padding:0;">
+                                <li><span class="dropdown-item loading">Loading...</span></li>
+                                </ul>
+                            </div>
+                            
+                        </div>
+                    </div>
+                                `;
+                                $('#v-reinstall .current .egg-type-list-card').append(html);
+                            }
+                        });
+                        up_edit_img();
+                        $('.egg-type-card').off("click");
+                        $(".egg-type-card").on("click",function () { 
+                            var server = $(this).data("server");
+                            var $listbox = $(this).find('.dropdown-menu ul');
+                            var $egg_type_v = $(this).find('.egg_type_v');
+                            if($(this).find('.dropdown-item.loading').length > 0){
+                                $listbox.empty();  
+                                egg_type.forEach(function(it) {  
+                                    if(it.env.SERVER_TYPE == server){
+                                        $egg_type_item = $('<li><span class="dropdown-item egg-type-item" data-id="'+it.id+'">' + it.env.SERVER_VERSION +'</span></li>');
+                                        $egg_type_item.click(function() {
+                                            $('.egg_type_v').html("请选择版本");
+                                            $('.egg-type-item').removeClass('active');
+                                            $(this).children('.egg-type-item').addClass('active');  
+                                            egg_type_id = $(this).data("id");
+                                            $egg_type_v.html('<span>' + it.env.SERVER_VERSION +'</span>');
+                                        });
+                                        $listbox.append($egg_type_item);
+                                    }
+                                });
+                            }
+                        });
+                    });
+                });
+                up_edit_img();
+                $('.os-card[data-title="{$EggType.egg.title}"]').trigger('click');
+                $('.os-item[data-name="{$EggType.egg_name}"]').trigger('click');
+                $('.egg-type-card[data-server="{$EggType.env.SERVER_TYPE}"]').trigger('click');
+                $('.egg-type-item[data-id="{$EggType.id}"]').trigger('click');
+                $("#PerformSystemReinstallationOperation").click(function() { 
+                    if($('#ConfirmDiscard').is(':checked')){
+                        var egg_type_id = $(".egg-type-item.active").data("id");
+                        
+                        if(egg_type_id){
+                            Swal.fire({
+                                title: '确定操作？',
+                                html: '你确定要进行此操作吗？重装会导致部分数据丢失，请将要保留的数据移动至backup目录，同时切换跨较大版本或者游戏类型时，保留的存档数据不一定兼容。',
+                                type: 'warning',
+                                showCancelButton: true,
+                                confirmButtonText: '确定',
+                                cancelButtonText: '取消'
+                            }).then((result) => {
+                                if (result.value) {
+                                    var selectedEgg = egg_type.find(item => item.id == egg_type_id);
+                                    var save_dirs = [];
+                                    if($('#retain').is(':checked')){
+                                        save_dirs = selectedEgg.egg.save_dirs;
+                                    }
+                                    if (selectedEgg.egg_name && selectedEgg.egg_name.startsWith('mc_')) {
+                                        Swal.fire({
+                                            title: '安装须知',
+                                            html: `<div class="text-left">
+                                                <ul>
+                                                    <li>下方选择模式后即开始创建服务端，建议开启在线模式（正版）。</li>
+                                                    <li>如果您选择了离线模式并且不安装登陆插件，则有可能会被机器人入侵</li>
+                                                    <li>本平台仅提供服务器运行环境，创建后即确认从https://www.minecraft.net/zh-hans/download/server/bedrock下载服务端至服务器。</li>
+                                                    <li>创建或安装后视为您已阅读并同意Minecraft Eula协议：https://www.minecraft.net/zh-hans/eula 
+                                                    <br>和Minecraft商业使用准则：https://www.minecraft.net/zh-hans/terms。</li>
+                                                </ul>
+                                            </div>`,
+                                            type: 'info',
+                                            showCancelButton: true,
+                                            confirmButtonText: '在线模式(正版)',
+                                            cancelButtonText: '离线模式'
+                                        }).then((mcResult) => {
+                                            console.log(mcResult);
+                                            if (mcResult.value || mcResult.dismiss == "cancel") {
+                                                var postData = {
+                                                    egg_type_id: egg_type_id,
+                                                    save_dirs: save_dirs
+                                                };
+                                                if (mcResult.value) {
+                                                    postData.online_mode = true;
+                                                } else if (mcResult.dismiss == "cancel") {
+                                                    postData.online_mode = false;
+                                                }
+                                                
+                                                performReinstallation(postData);
+                                            }
+                                        });
+                                    } else {
+                                        var postData = {
+                                            egg_type_id: egg_type_id,
+                                            save_dirs: save_dirs
+                                        };
+                                        performReinstallation(postData);
+                                    }
+                                }
+                            });
+                        } else {
+                            toastr.error("请选择游戏版本");
+                        }
+                    } else {
+                        toastr.error("请勾选确认");
+                    }
+                });
+            } else {
+                toastr.error(data.msg);
+            }
+        }
+    });
+    $("#start-mysql").click(function() {
+        $.ajax({
+            type: "POST",
+            url: "{$MODULE_CUSTOM_API}",
+            data: { func: "StartMySQL"},
+            success: function(data) {
+                if (data.status == 200) {
+                    toastr.success("已开启数据库服务");
+                    location.reload();
+                } else {
+                    toastr.error(data.msg);
+                }
+            }
+        })
+    });
+    $("#close-mysql").click(function() {
+        Swal.fire({
+            title: '输入"我确认"以关闭数据库',
+            text: '关闭后将删除数据库，包括删除其中的全部数据，此操作不可撤销。',
+            input: 'text',
+            inputPlaceholder: '请输入"我确认"',
+            type: 'warning',
+            showCancelButton: true,
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            preConfirm: (input) => {
+                if (input !== '我确认') {
+                    Swal.showValidationMessage('输入内容必须为"我确认"');
+                    return false;
+                }
+                return input;
+            }
+        }).then((result) => {
+            if (result.value === '我确认') {
+                $.ajax({
+                    type: "POST",
+                    url: "{$MODULE_CUSTOM_API}",
+                    data: { func: "CloseMySQL" },
+                    success: function(data) {
+                        if (data.status == 200) {
+                            toastr.success("已关闭数据库服务");
+                            location.reload();
+                        } else {
+                            toastr.error(data.msg);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        toastr.error("请求失败: " + error);
+                    }
+                });
+            }
+        });
+    });
+    $("#start-sftp").click(function() {
+        $.ajax({
+            type: "POST",
+            url: "{$MODULE_CUSTOM_API}",
+            data: { func: "StartSFTP"},
+            success: function(data) {
+                if (data.status == 200) {
+                    toastr.success("已开启SFTP服务");
+                    location.reload();
+                } else {
+                    toastr.error(data.msg);
+                }
+            }
+        })
+    });
+    $("#close-sftp").click(function() { 
+        $.ajax({
+            type: "POST",
+            url: "{$MODULE_CUSTOM_API}",
+            data: { func: "CloseSFTP"},
+            success: function(data) {
+                if (data.status == 200) {
+                    toastr.success("已关闭SFTP服务");
+                    location.reload();
+                } else {
+                    toastr.error(data.msg);
+                }
+            }
+        })
+    });
+    $(".copy-btn").click(function() {
+        var text = $(this).data('clipboard-text');
+        
+        navigator.clipboard.writeText(text).then(function() {
+            toastr.success("复制成功！");
+        }).catch(function(err) {
+            toastr.error("复制失败");
+        });
+    });
+    $('#startup-command-button').click(function() {
+        var commandValue = $('#startup-command-textarea').val().trim();
+        var postData = {
+            func: 'SetStartCommand',
+            command: commandValue
+        };
+        $.ajax({
+            url: '{$MODULE_CUSTOM_API}',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(postData),
+            dataType: 'json',
+            success: function(response) {
+                toastr.success("保存成功");
+            },
+            error: function(xhr, status, error) {
+                toastr.error("保存失败，请重试！");
+            },
+            beforeSend: function() {
+                $('#startup-command-button').prop('disabled', true).html('<div class="d-flex align-items-center"><span>保存中...</span></div>');
+            },
+            complete: function() {
+                $('#startup-command-button').prop('disabled', false).html('<div class="d-flex align-items-center"><span>保存</span></div>');
+            }
+        });
+    });
+});
+function up_edit_img(){
+    $('.egg-img-crisp').off('error');
+    $('.egg-img-crisp').on('error', function() {
+        var $img = $(this);
+        var $container = $img.closest('.d-flex.align-items-center.px-1');
+        var eggName = $container.find('.egg_name').text().trim();
+        var buttonText = '';
+        
+        var firstChar = eggName.charAt(0);
+        var isChinese = /[\u4e00-\u9fa5]/.test(firstChar);
+        
+        if (isChinese) {
+            buttonText = firstChar;
+        } else {
+            buttonText = eggName.substring(0, 2).toUpperCase();
+        }
+        
+        var $button = $('<button>', {
+            type: 'button',
+            class: 'btn btn-primary rounded',
+            css: {
+                width: '40px',
+                height: '40px',
+                fontSize: '20px'
+            },
+            html: '<span style="width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;">' + buttonText + '</span>'
+        });
+        $img.replaceWith($button);
+    });
+}
+function performReinstallation(postData) {
+    postData.func = "ChangeEgg";
+    $.ajax({
+        url: '{$MODULE_CUSTOM_API}',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(postData),
+        success: function(response) {
+            if (response.status == 200) {
+                toastr.success("操作成功！");
+                location.reload();
+            } else {
+                toastr.error(response.msg);
+            }
+        },
+        error: function(xhr, status, error) {
+            toastr.error('操作失败：' + (xhr.responseJSON?.message || error));
+        }
+    });
+}
+</script>

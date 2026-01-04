@@ -1,0 +1,243 @@
+<link rel="stylesheet" href="https://static.mhjz1.cn/xterm-5.3.0/xterm.css" />
+<script src="https://static.mhjz1.cn/xterm-5.3.0/xterm.min.js"></script>
+<script src="https://static.mhjz1.cn/xterm-addon-fit-0.8.0/xterm-addon-fit.min.js"></script>
+
+<style>
+    .controls {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+        align-items: center;
+        background: #2d2d2d;
+        padding: 10px;
+        border-radius: 8px;
+    }
+
+    .xbtn {
+        padding: 8px 16px;
+        background-color: #007acc;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background 0.2s;
+    }
+
+    .xbtn:hover {
+        background-color: #005f9e;
+    }
+
+    button.btn-danger {
+        background-color: #d9534f;
+    }
+    button.btn-danger:hover {
+        background-color: #c9302c;
+    }
+
+    #status-indicator {
+        margin-left: auto;
+        font-size: 14px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background-color: gray;
+        display: inline-block;
+    }
+
+    #terminal-container {
+        flex: 1;
+        width: 100%;
+        background-color: #000;
+        padding: 10px;
+        box-sizing: border-box;
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+    }
+</style>
+
+<div class="controls">
+    <button id="btn-focus" class="xbtn">聚焦输入</button>
+    <button id="btn-reconnect" class="btn-danger xbtn">重新连接</button>
+    <button id="btn-clear" class="xbtn">清空</button>
+    
+    <div id="status-indicator">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">未连接</span>
+    </div>
+</div>
+
+<div id="terminal-container"></div>
+
+<script>
+function initTerminal() {
+    if (typeof Terminal === 'undefined' || typeof FitAddon === 'undefined') {
+        console.error('Terminal 相关依赖未加载完成');
+        return false;
+    }
+    
+    const term = new Terminal({
+        cursorBlink: true,
+        fontSize: 14,
+        fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+        theme: {
+            background: '#000000',
+            foreground: '#ffffff'
+        },
+        convertEol: true,
+    });
+
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+
+    term.open(document.getElementById('terminal-container'));
+    fitAddon.fit();
+
+    let socket = null;
+    let pingInterval = null;
+
+
+    function connect() {
+        if (socket) {
+            socket.close();
+        }
+
+        updateStatus('connecting');
+        term.write('\r\n\x1b[33m正在连接到终端...\x1b[0m\r\n');
+
+        try {
+            socket = new WebSocket(`wss://{$k8s_panel_helper_domain}/{$k8s_panel_namespace}/terminal?app_install_name={$k8s_panel_namespace}&method=attach&cols=${term.cols}&rows=${term.rows}&app-token={$k8s_panel_helper_token}`);
+        } catch (e) {
+            term.write(`\r\n\x1b[31mURL 错误: ${e.message}\x1b[0m\r\n`);
+            return;
+        }
+
+        socket.onopen = function() {
+            updateStatus('connected');
+            term.write('\r\n\x1b[32m连接成功!\x1b[0m\r\n');
+            term.focus();
+
+            sendResize();
+            
+            startPing();
+        };
+
+        socket.onmessage = function(event) {
+            if (typeof event.data === 'string') {
+                term.write(event.data);
+            } else {
+                const reader = new FileReader();
+                reader.onload = () => term.write(reader.result);
+                reader.readAsText(event.data);
+            }
+        };
+
+        socket.onclose = function(event) {
+            updateStatus('disconnected');
+            term.write('\r\n\x1b[31m连接已断开 (Code: ' + event.code + ')\x1b[0m\r\n');
+            stopPing();
+        };
+
+        socket.onerror = function(error) {
+            updateStatus('error');
+            console.error('WebSocket Error:', error);
+        };
+    }
+
+    term.onData(data => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(data);
+        }
+    });
+
+    function sendResize() {
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
+        const dims = {
+            cols: term.cols,
+            rows: term.rows
+        };
+        
+        const resizeMessage = JSON.stringify({
+            type: "resize",
+            cols: dims.cols,
+            rows: dims.rows
+        });
+
+        console.log("Sending Resize:", resizeMessage);
+        socket.send(resizeMessage);
+    }
+
+    $(window).resize(function() {
+        fitAddon.fit();
+        sendResize();
+    });
+
+
+    function updateStatus(state) {
+        const $text = $('#status-text');
+        const $dot = $('#status-dot');
+
+        if (state === 'connected') {
+            $text.text('已连接');
+            $dot.css('background-color', '#4caf50');
+        } else if (state === 'connecting') {
+            $text.text('连接中...');
+            $dot.css('background-color', '#ff9800');
+        } else {
+            $text.text('已断开');
+            $dot.css('background-color', '#f44336');
+        }
+    }
+
+    function startPing() {
+        stopPing();
+        pingInterval = setInterval(() => {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send('ping');
+            }
+        }, 10000);
+    }
+
+    function stopPing() {
+        if (pingInterval) clearInterval(pingInterval);
+    }
+
+    $('#btn-focus').off('click').on('click', function() {
+        term.focus();
+    });
+
+    $('#btn-clear').off('click').on('click', function() {
+        term.clear();
+    });
+
+    $('#btn-reconnect').off('click').on('click', function() {
+        connect();
+    });
+
+    setTimeout(connect, 300);
+    
+    return true;
+}
+
+function checkDependenciesAndInit() {
+    if (typeof Terminal !== 'undefined' && typeof FitAddon !== 'undefined') {
+        setTimeout(initTerminal, 100);
+    } else {
+        console.log('等待Terminal依赖加载...');
+        setTimeout(checkDependenciesAndInit, 100);
+    }
+}
+
+$(document).ready(function() {
+    checkDependenciesAndInit();
+});
+</script>

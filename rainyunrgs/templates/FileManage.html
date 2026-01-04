@@ -1,0 +1,1840 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件管理器</title>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://static.mhjz1.cn/fontawesome-6.5.2-web/css/all.min.css">
+    <!-- jQuery -->
+    
+    <style>
+        .sidebar {
+            background-color: #ffffff;
+            border-right: 1px solid #dee2e6;
+            height: calc(100vh - 60px);
+            overflow-y: auto;
+        }
+        .file-item:hover {
+            background-color: #f1f3f4;
+            cursor: pointer;
+        }
+        .file-item.selected {
+            background-color: #e3f2fd;
+        }
+        .file-icon {
+            width: 24px;
+            text-align: center;
+            margin-right: 8px;
+        }
+        .breadcrumb {
+            background-color: transparent;
+            padding: 0.75rem 0;
+            margin-bottom: 0;
+        }
+        .action-btn {
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        .file-size {
+            color: #6c757d;
+            font-size: 0.85rem;
+        }
+        .file-time {
+            color: #6c757d;
+            font-size: 0.85rem;
+        }
+        .modal-lg {
+            max-width: 90%;
+        }
+        .progress {
+            height: 20px;
+            margin-bottom: 10px;
+        }
+        .upload-area {
+            border: 2px dashed #007bff;
+            border-radius: 5px;
+            padding: 30px;
+            text-align: center;
+            background-color: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .upload-area:hover {
+            background-color: #e9f7fe;
+            border-color: #0056b3;
+        }
+        .permission-badge {
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        .status-bar {
+            background-color: #e9ecef;
+            border-top: 1px solid #dee2e6;
+            padding: 5px 15px;
+            font-size: 0.85rem;
+        }
+        #fileTable th {
+            cursor: pointer;
+            user-select: none;
+        }
+        #fileTable th:hover {
+            background-color: #f8f9fa;
+        }
+        .sort-arrow {
+            margin-left: 5px;
+            color: #6c757d;
+        }
+        .context-menu {
+            position: absolute;
+            background: white;
+            border: 1px solid #ddd;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: none;
+        }
+        .context-menu-item {
+            padding: 8px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .context-menu-item:hover {
+            background-color: #f5f5f5;
+        }
+        .context-menu-item:last-child {
+            border-bottom: none;
+        }
+        .btn-close {
+            --bs-btn-close-color: #000;
+            --bs-btn-close-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23000'%3e%3cpath d='M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L6.586 8 .293 1.707a1 1 0 0 1 0-1.414z'/%3e%3c/svg%3e");
+            --bs-btn-close-opacity: 0.5;
+            --bs-btn-close-hover-opacity: 0.75;
+            --bs-btn-close-focus-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+            --bs-btn-close-focus-opacity: 1;
+            --bs-btn-close-disabled-opacity: 0.25;
+            --bs-btn-close-white-filter: invert(1) grayscale(100%) brightness(200%);
+            box-sizing: content-box;
+            width: 1em;
+            height: 1em;
+            padding: .25em .25em;
+            color: var(--bs-btn-close-color);
+            background: transparent var(--bs-btn-close-bg) center/1em auto no-repeat;
+            border: 0;
+            border-radius: .375rem;
+            opacity: var(--bs-btn-close-opacity)
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <div class="navbar-text text-white">
+                <span id="currentPath">根目录</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 工具栏 -->
+    <div class="container-fluid py-2 border-bottom bg-white">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <div class="btn-toolbar" role="toolbar">
+                    <div class="btn-group me-2 action-btn">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="toggleHiddenFiles()" title="显示/隐藏隐藏文件">
+                            <i class="fas fa-eye"></i>
+                            显示/隐藏隐藏文件
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="refreshFiles()" title="刷新">
+                            <i class="fas fa-sync-alt"></i>
+                            刷新
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="selectAllFiles()" title="全选/取消全选">
+                            <i class="fas fa-check-square"></i>
+                            全选/取消全选
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="$('#uploadModal').modal('show')" title="上传">
+                            <i class="fas fa-upload"></i>
+                            上传
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="showNewFileModal()" title="新建文件">
+                            <i class="fas fa-file"></i>
+                            新建文件
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="showNewFolderModal()" title="新建文件夹">
+                            <i class="fas fa-folder-plus"></i>
+                            新建文件夹
+                        </button>
+                    </div>
+                    
+                    <div class="btn-group me-2 action-btn" id="pasteBtnContainer" style="display: none;">
+                        <button class="btn btn-warning btn-sm" onclick="pasteFiles()" title="粘贴">
+                            <i class="fas fa-paste"></i> 粘贴
+                        </button>
+                    </div>
+                    
+                    <div class="btn-group me-2 action-btn dropdown" id="batchActionContainer" style="display: none;">
+                        <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
+                            批量操作
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" onclick="batchZipDownload()">压缩下载</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="batchZipOnly()">仅压缩</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="batchCopy()">复制</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="batchCut()">剪切</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="batchDelete()">删除</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="input-group">
+                    <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="搜索当前目录...">
+                    <div class="input-group-append">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid mt-3">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0" id="fileTable">
+                                <thead>
+                                    <tr>
+                                        <th width="50">
+                                            <input type="checkbox" id="selectAll">
+                                        </th>
+                                        <th onclick="sortFiles('name')">
+                                            名称 <span id="sortName" class="sort-arrow"></span>
+                                        </th>
+                                        <th onclick="sortFiles('size')" width="100">
+                                            大小 <span id="sortSize" class="sort-arrow"></span>
+                                        </th>
+                                        <th onclick="sortFiles('mod_time')" width="180">
+                                            修改时间 <span id="sortTime" class="sort-arrow"></span>
+                                        </th>
+                                        <th onclick="sortFiles('mode')" width="100">
+                                            权限 <span id="sortMode" class="sort-arrow"></span>
+                                        </th>
+                                        <th width="150">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="fileList">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-2">
+            <div class="col-12">
+                <div class="status-bar">
+                    <span id="fileCount">0 个项目</span>
+                    <span id="selectedCount" style="margin-left: 20px;"></span>
+                    <span id="totalSize" style="margin-left: 20px;"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="contextMenu" class="context-menu">
+        <div class="context-menu-item" onclick="contextMenuEdit()"><i class="fas fa-edit me-2"></i>编辑</div>
+        <div class="context-menu-item" onclick="contextMenuRename()"><i class="fas fa-i-cursor me-2"></i>重命名</div>
+        <div class="context-menu-item" onclick="contextMenuCopy()"><i class="fas fa-copy me-2"></i>复制</div>
+        <div class="context-menu-item" onclick="contextMenuCut()"><i class="fas fa-cut me-2"></i>剪切</div>
+        <div class="context-menu-item" onclick="contextMenuDownload()"><i class="fas fa-download me-2"></i>下载</div>
+        <div class="context-menu-item" onclick="contextMenuZip()"><i class="fas fa-file-archive me-2"></i>压缩</div>
+        <div class="context-menu-item" onclick="contextMenuUnzip()"><i class="fas fa-file-zipper me-2"></i>解压</div>
+        <div class="context-menu-item" onclick="contextMenuChmod()"><i class="fas fa-lock me-2"></i>修改权限</div>
+        <hr class="my-0">
+        <div class="context-menu-item text-danger" onclick="contextMenuDelete()"><i class="fas fa-trash me-2"></i>删除</div>
+    </div>
+
+    <div class="modal fade" id="editModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">编辑文件</h5>
+                    <button type="button" class="btn-close" data-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning" id="editWarning" style="display: none;">
+                        文件超过2MB，无法在线编辑
+                    </div>
+                    <textarea class="form-control" id="fileContent" rows="20"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveFile()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="renameModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">重命名</h5>
+                    <button type="button" class="btn-close" data-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" class="form-control" id="newFileName" placeholder="请输入新名称">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="doRename()">确定</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="newFileModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">新建文件</h5>
+                    <button type="button" class="btn-close" data-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" class="form-control" id="newFileNameInput" placeholder="请输入文件名（如：newfile.txt）">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="createNewFile()">创建</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="newFolderModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">新建文件夹</h5>
+                    <button type="button" class="btn-close" data-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" class="form-control" id="newFolderNameInput" placeholder="请输入文件夹名">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="createNewFolder()">创建</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="chmodModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">修改权限</h5>
+                    <button type="button" class="btn-close" data-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">当前权限：<code id="currentPermission">644</code></label>
+                    </div>
+                    <div class="border p-3 mb-3">
+                        <h6>所有者权限</h6>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="ownerRead" checked>
+                            <label class="form-check-label" for="ownerRead">读取 (4)</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="ownerWrite" checked>
+                            <label class="form-check-label" for="ownerWrite">写入 (2)</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="ownerExecute">
+                            <label class="form-check-label" for="ownerExecute">执行 (1)</label>
+                        </div>
+                    </div>
+                    
+                    <div class="border p-3 mb-3">
+                        <h6>用户组权限</h6>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="groupRead" checked>
+                            <label class="form-check-label" for="groupRead">读取 (4)</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="groupWrite">
+                            <label class="form-check-label" for="groupWrite">写入 (2)</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="groupExecute">
+                            <label class="form-check-label" for="groupExecute">执行 (1)</label>
+                        </div>
+                    </div>
+                    
+                    <div class="border p-3 mb-3">
+                        <h6>其他用户权限</h6>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="otherRead" checked>
+                            <label class="form-check-label" for="otherRead">读取 (4)</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="otherWrite">
+                            <label class="form-check-label" for="otherWrite">写入 (2)</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="otherExecute">
+                            <label class="form-check-label" for="otherExecute">执行 (1)</label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="chmodRecursive">
+                            <label class="form-check-label" for="chmodRecursive">
+                                递归修改（对于文件夹，修改其下所有文件和子文件夹的权限）
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        权限值：<span id="permissionValue">644</span> (八进制)
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="doChmod()">确定</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="uploadModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">上传文件</h5>
+                    <button type="button" class="btn-close" data-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="upload-area" onclick="$('#fileUpload').click()">
+                        <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-primary"></i>
+                        <h5>点击选择文件或拖放文件到这里</h5>
+                        <p class="text-muted">支持上传文件或文件夹（选择文件夹时会上传整个文件夹）</p>
+                    </div>
+                    
+                    <input type="file" id="fileUpload" multiple style="display: none;" onchange="handleFileSelect(this.files)">
+                    <input type="file" id="folderUpload" webkitdirectory style="display: none;" onchange="handleFolderSelect(this.files)">
+                    
+                    <div class="mt-3">
+                        <button class="btn btn-outline-primary btn-sm me-2" onclick="$('#fileUpload').click()">
+                            <i class="fas fa-file"></i> 选择文件
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" onclick="$('#folderUpload').click()">
+                            <i class="fas fa-folder"></i> 选择文件夹
+                        </button>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h6>上传队列</h6>
+                        <div id="uploadQueue" class="list-group" style="max-height: 300px; overflow-y: auto;">
+                        </div>
+                    </div>
+                    
+                    <div class="progress mt-3" style="display: none;" id="uploadProgressContainer">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             id="uploadProgress" role="progressbar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="startUpload()">开始上传</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = 'https://{$k8s_panel_helper_domain}/{$k8s_panel_namespace}/file_manage';
+        const APP_TOKEN = '{$k8s_panel_helper_token}';
+        
+        let currentPath = '/data';
+        let fileList = [];
+        let filteredFileList = [];
+        let selectedFiles = new Set();
+        let showHidden = false;
+        let sortColumn = 'name';
+        let sortDirection = 'asc';
+        let fileclipboard = {
+            action: null, // 'copy' 或 'move'
+            files: []
+        };
+        
+        // 上传相关
+        let uploadQueue = [];
+        let isUploading = false;
+        
+        // 页面加载完成后初始化
+        $(document).ready(function() {
+            loadFiles();
+            setupEventListeners();
+            setupContextMenu();
+            
+            // 更新权限值显示
+            updatePermissionValue();
+        });
+        
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 搜索框输入事件
+            $('#searchInput').on('input', function() {
+                filterFiles();
+            });
+            
+            // 全选复选框
+            $('#selectAll').on('change', function() {
+                const isChecked = $(this).prop('checked');
+                $('.file-checkbox').prop('checked', isChecked);
+                
+                if (isChecked) {
+                    fileList.forEach(file => {
+                        selectedFiles.add(file.fullname);
+                    });
+                } else {
+                    selectedFiles.clear();
+                }
+                updateSelectedCount();
+                updateBatchActionContainer();
+            });
+            
+            // 权限开关事件
+            $('.form-check-input').on('change', updatePermissionValue);
+            
+            // 拖放上传
+            $('.upload-area').on('dragover', function(e) {
+                e.preventDefault();
+                $(this).addClass('border-primary');
+            });
+            
+            $('.upload-area').on('dragleave', function(e) {
+                e.preventDefault();
+                $(this).removeClass('border-primary');
+            });
+            
+            $('.upload-area').on('drop', function(e) {
+                e.preventDefault();
+                $(this).removeClass('border-primary');
+                
+                const files = e.originalEvent.dataTransfer.files;
+                if (files.length > 0) {
+                    // 检查是否有文件夹
+                    const hasFolder = Array.from(files).some(file => file.webkitRelativePath);
+                    
+                    if (hasFolder) {
+                        // 处理文件夹拖放比较复杂，这里简化处理为文件上传
+                        handleFileSelect(files);
+                    } else {
+                        handleFileSelect(files);
+                    }
+                }
+            });
+            
+            // 点击空白处关闭右键菜单
+            $(document).on('click', function() {
+                $('#contextMenu').hide();
+            });
+            
+            // 阻止右键菜单的默认行为
+            $(document).on('contextmenu', function(e) {
+                if ($(e.target).closest('#fileTable tbody tr').length) {
+                    e.preventDefault();
+                }
+            });
+        }
+        
+        // 设置右键菜单
+        function setupContextMenu() {
+            $(document).on('contextmenu', '#fileTable tbody tr', function(e) {
+                e.preventDefault();
+                
+                const fileIndex = $(this).data('index');
+                if (fileIndex === undefined) return;
+                
+                const file = filteredFileList[fileIndex];
+                if (!file) return;
+                
+                // 更新选中项
+                selectedFiles.clear();
+                selectedFiles.add(file.fullname);
+                updateSelectedCount();
+                
+                // 设置菜单位置
+                $('#contextMenu').css({
+                    left: e.pageX + 'px',
+                    top: e.pageY + 'px'
+                }).show();
+                
+                // 根据文件类型显示/隐藏菜单项
+                const isDir = file.is_dir;
+                const isZip = file.ext === '.zip' || file.name.endsWith('.zip');
+                
+                $('#contextMenu .context-menu-item').show();
+                
+                if (isDir) {
+                    // 文件夹：隐藏编辑和解压，显示压缩
+                    $('.context-menu-item:contains("编辑")').hide();
+                    $('.context-menu-item:contains("解压")').hide();
+                } else {
+                    // 文件：显示编辑，根据扩展名显示解压
+                    if (!isZip) {
+                        $('.context-menu-item:contains("解压")').hide();
+                    }
+                    $('.context-menu-item:contains("压缩")').hide();
+                }
+                
+                // 保存当前操作的文件
+                $('#contextMenu').data('file', file);
+            });
+        }
+        
+        // 右键菜单功能
+        function contextMenuEdit() {
+            const file = $('#contextMenu').data('file');
+            if (file) editFile(file);
+        }
+        
+        function contextMenuRename() {
+            const file = $('#contextMenu').data('file');
+            if (file) renameFile(file);
+        }
+        
+        function contextMenuCopy() {
+            const file = $('#contextMenu').data('file');
+            if (file) copyFile(file);
+        }
+        
+        function contextMenuCut() {
+            const file = $('#contextMenu').data('file');
+            if (file) cutFile(file);
+        }
+        
+        function contextMenuDownload() {
+            const file = $('#contextMenu').data('file');
+            if (file) downloadFile(file);
+        }
+        
+        function contextMenuZip() {
+            const file = $('#contextMenu').data('file');
+            if (file) zipFile(file);
+        }
+        
+        function contextMenuUnzip() {
+            const file = $('#contextMenu').data('file');
+            if (file) unzipFile(file);
+        }
+        
+        function contextMenuChmod() {
+            const file = $('#contextMenu').data('file');
+            if (file) changePermission(file);
+        }
+        
+        function contextMenuDelete() {
+            const file = $('#contextMenu').data('file');
+            if (file) deleteFile(file);
+        }
+        
+        // 加载文件列表
+        function loadFiles() {
+            var parts = currentPath.split('/').filter(p => p);
+            var $container = $('#currentPath').empty();
+
+            parts.forEach((part, i) => {
+                var path = '/' + parts.slice(0, i + 1).join('/');
+                if(i == 0) part = "根目录";
+                var $span = $('<span>').text(part);
+                
+                if (i < parts.length - 1) {
+                    $span.css({cursor: 'pointer', color: '#0A65FF'})
+                        .on('click', function() {
+                            currentPath = path;
+                            selectedFiles.clear();
+                            loadFiles();
+                        });
+                } else {
+                    $span.css({fontWeight: 'bold', color: '#333'});
+                }
+                
+                $container.append($span);
+                if (i < parts.length - 1) $container.append('<span class="text-dark">/</span>');
+            });
+            $.ajax({
+                url: `${API_BASE}/list`,
+                method: 'GET',
+                data: {
+                    path: currentPath,
+                    show_hide: showHidden
+                },
+                headers: {
+                    'app-token': APP_TOKEN
+                },
+                success: function(response) {
+                    if (response.code === 200) {
+                        fileList = response.data;
+                        filterFiles();
+                        updateFileCount();
+                    } else {
+                        alert('加载文件列表失败: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('加载文件列表失败: ' + error);
+                }
+            });
+        }
+        
+        // 过滤文件（搜索功能）
+        function filterFiles() {
+            const searchText = $('#searchInput').val().toLowerCase();
+            
+            if (searchText) {
+                filteredFileList = fileList.filter(file => 
+                    file.name.toLowerCase().includes(searchText)
+                );
+            } else {
+                filteredFileList = [...fileList];
+            }
+            
+            sortFiles(sortColumn, sortDirection, true);
+        }
+        
+        // 排序文件
+        function sortFiles(column, direction, keepCurrent = false) {
+            if (!keepCurrent) {
+                if (sortColumn === column) {
+                    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortColumn = column;
+                    sortDirection = 'asc';
+                }
+            }
+            
+            // 清除所有排序箭头
+            $('.sort-arrow').html('');
+            
+            // 设置当前排序箭头
+            const arrow = sortDirection === 'asc' ? '↑' : '↓';
+            $(`#sort${column.charAt(0).toUpperCase() + column.slice(1)}`).html(arrow);
+            
+            filteredFileList.sort((a, b) => {
+                let aVal = a[column];
+                let bVal = b[column];
+                
+                if (column === 'size') {
+                    aVal = parseInt(aVal) || 0;
+                    bVal = parseInt(bVal) || 0;
+                } else if (column === 'mod_time') {
+                    aVal = new Date(aVal).getTime();
+                    bVal = new Date(bVal).getTime();
+                } else {
+                    aVal = String(aVal).toLowerCase();
+                    bVal = String(bVal).toLowerCase();
+                }
+                
+                if (sortDirection === 'asc') {
+                    return aVal > bVal ? 1 : -1;
+                } else {
+                    return aVal < bVal ? 1 : -1;
+                }
+            });
+            
+            renderFileList();
+        }
+        
+        // 渲染文件列表
+        function renderFileList() {
+            const $fileList = $('#fileList');
+            $fileList.empty();
+            
+            if (filteredFileList.length === 0) {
+                $fileList.html('<tr><td colspan="6" class="text-center py-4 text-muted">当前目录为空</td></tr>');
+                return;
+            }
+            
+            // 先显示文件夹，再显示文件
+            const dirs = filteredFileList.filter(file => file.is_dir);
+            const files = filteredFileList.filter(file => !file.is_dir);
+            const sortedList = [...dirs, ...files];
+            filteredFileList = sortedList;
+            sortedList.forEach((file, index) => {
+                const isSelected = selectedFiles.has(file.fullname);
+                const icon = file.is_dir ? 'fa-folder text-warning' : getFileIcon(file.ext);
+                const size = formatFileSize(file.size);
+                const time = formatTime(file.mod_time);
+                const mode = file.mode;
+                
+                const $tr = $(`
+                    <tr class="file-item ${isSelected ? 'selected' : ''}" data-index="${index}">
+                        <td>
+                            <input type="checkbox" class="file-checkbox" ${isSelected ? 'checked' : ''} 
+                                   data-fullname="${file.fullname}">
+                        </td>
+                        <td>
+                            <i class="fas ${icon} file-icon"></i>
+                            ${file.name}
+                        </td>
+                        <td class="file-size">${size}</td>
+                        <td class="file-time">${time}</td>
+                        <td>
+                            <span class="badge badge-light permission-badge">${mode}</span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                ${!file.is_dir ? 
+                                    `<button class="btn btn-outline-primary btn-sm" onclick="editFileByIndex(${index})" title="编辑">
+                                        <i class="fas fa-edit"></i>
+                                     </button>` : ''}
+                                <button class="btn btn-outline-secondary btn-sm" onclick="renameFileByIndex(${index})" title="重命名">
+                                    <i class="fas fa-i-cursor"></i>
+                                </button>
+                                ${file.is_dir ? 
+                                    `<button class="btn btn-outline-info btn-sm" onclick="downloadFolderAsZip(${index})" title="下载为ZIP">
+                                        <i class="fas fa-download"></i>
+                                     </button>` :
+                                    `<button class="btn btn-outline-info btn-sm" onclick="downloadFileByIndex(${index})" title="下载">
+                                        <i class="fas fa-download"></i>
+                                     </button>`}
+                                <button class="btn btn-outline-danger btn-sm" onclick="deleteFileByIndex(${index})" title="删除">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `);
+                
+                // 点击进入文件夹或编辑文件
+                $tr.find('td').not(':first-child, :last-child').on('click', function() {
+                    if (file.is_dir) {
+                        enterFolder(file.name);
+                    } else {
+                        editFileByIndex(index);
+                    }
+                });
+                
+                // 单击选中文件
+                $tr.find('.file-checkbox').on('change', function() {
+                    const fullname = $(this).data('fullname');
+                    if ($(this).prop('checked')) {
+                        selectedFiles.add(fullname);
+                    } else {
+                        selectedFiles.delete(fullname);
+                        $('#selectAll').prop('checked', false);
+                    }
+                    updateSelectedCount();
+                    updateBatchActionContainer();
+                });
+                
+                $fileList.append($tr);
+            });
+            
+            updateSelectedCount();
+            updateBatchActionContainer();
+        }
+        
+        // 根据扩展名获取文件图标
+        function getFileIcon(ext) {
+            const iconMap = {
+                '.txt': 'fa-file-text text-info',
+                '.pdf': 'fa-file-pdf text-danger',
+                '.doc': 'fa-file-word text-primary',
+                '.docx': 'fa-file-word text-primary',
+                '.xls': 'fa-file-excel text-success',
+                '.xlsx': 'fa-file-excel text-success',
+                '.ppt': 'fa-file-powerpoint text-warning',
+                '.pptx': 'fa-file-powerpoint text-warning',
+                '.jpg': 'fa-file-image text-success',
+                '.jpeg': 'fa-file-image text-success',
+                '.png': 'fa-file-image text-success',
+                '.gif': 'fa-file-image text-success',
+                '.zip': 'fa-file-archive text-secondary',
+                '.rar': 'fa-file-archive text-secondary',
+                '.7z': 'fa-file-archive text-secondary',
+                '.mp3': 'fa-file-audio text-info',
+                '.mp4': 'fa-file-video text-danger',
+                '.html': 'fa-file-code text-success',
+                '.js': 'fa-file-code text-warning',
+                '.css': 'fa-file-code text-primary',
+                '.json': 'fa-file-code text-warning'
+            };
+            
+            return iconMap[ext.toLowerCase()] || 'fa-file text-secondary';
+        }
+        
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        // 格式化时间
+        function formatTime(timeString) {
+            const date = new Date(timeString);
+            return date.toLocaleString('zh-CN');
+        }
+        
+        // 更新文件计数
+        function updateFileCount() {
+            const totalSize = fileList.reduce((sum, file) => sum + (file.size || 0), 0);
+            $('#fileCount').text(`${fileList.length} 个项目`);
+            $('#totalSize').text(`总大小: ${formatFileSize(totalSize)}`);
+        }
+        
+        // 更新选中计数
+        function updateSelectedCount() {
+            const count = selectedFiles.size;
+            if (count > 0) {
+                $('#selectedCount').text(`已选中 ${count} 项`);
+            } else {
+                $('#selectedCount').text('');
+            }
+        }
+        
+        // 更新批量操作容器显示
+        function updateBatchActionContainer() {
+            if (selectedFiles.size > 0) {
+                $('#batchActionContainer').show();
+            } else {
+                $('#batchActionContainer').hide();
+            }
+        }
+        
+        // 进入文件夹
+        function enterFolder(folderName) {
+            if (currentPath.endsWith('/')) {
+                currentPath += folderName;
+            } else {
+                currentPath += '/' + folderName;
+            }
+            selectedFiles.clear();
+            loadFiles();
+        }
+        
+
+        
+        // 刷新文件列表
+        function refreshFiles() {
+            selectedFiles.clear();
+            loadFiles();
+        }
+        
+        // 切换显示隐藏文件
+        function toggleHiddenFiles() {
+            showHidden = !showHidden;
+            loadFiles();
+            const $btn = $('#searchInput').next().find('button');
+            $btn.find('i').toggleClass('fa-eye fa-eye-slash');
+            $btn.attr('title', showHidden ? '隐藏隐藏文件' : '显示隐藏文件');
+        }
+        
+        // 全选文件
+        function selectAllFiles() {
+            const allChecked = $('#selectAll').prop('checked');
+            
+            if (allChecked) {
+                // 取消全选
+                $('#selectAll').prop('checked', false);
+                $('.file-checkbox').prop('checked', false);
+                selectedFiles.clear();
+            } else {
+                // 全选
+                $('#selectAll').prop('checked', true);
+                $('.file-checkbox').prop('checked', true);
+                selectedFiles.clear();
+                filteredFileList.forEach(file => {
+                    selectedFiles.add(file.fullname);
+                });
+            }
+            
+            updateSelectedCount();
+            updateBatchActionContainer();
+        }
+        
+        // 编辑文件
+        function editFile(file) {
+            if (file.is_dir) {
+                alert('文件夹不能编辑');
+                return;
+            }
+            
+            // 检查文件大小
+            if (file.size > 2 * 1024 * 1024) { // 2MB
+                $('#editWarning').show();
+                $('#fileContent').prop('disabled', true);
+            } else {
+                $('#editWarning').hide();
+                $('#fileContent').prop('disabled', false);
+            }
+            
+            $('#editModal').data('file', file);
+            $('#editModal .modal-title').text(`编辑文件: ${file.name}`);
+            
+            // 加载文件内容
+            $.ajax({
+                url: `${API_BASE}/edit`,
+                method: 'GET',
+                data: {
+                    path: file.fullname
+                },
+                headers: {
+                    'app-token': APP_TOKEN
+                },
+                success: function(response) {
+                    if (response.code === 200) {
+                        if (response.data.can_edit) {
+                            $('#fileContent').val(response.data.data);
+                            $('#editModal').modal('show');
+                        } else {
+                            alert('文件不可编辑');
+                        }
+                    } else {
+                        alert('加载文件失败: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('加载文件失败: ' + error);
+                }
+            });
+        }
+        
+        function editFileByIndex(index) {
+            const file = filteredFileList[index];
+            if (file) editFile(file);
+        }
+        
+        // 保存文件
+        function saveFile() {
+            const file = $('#editModal').data('file');
+            const content = $('#fileContent').val();
+            
+            $.ajax({
+                url: `${API_BASE}/save`,
+                method: 'POST',
+                headers: {
+                    'app-token': APP_TOKEN,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify({
+                    path: file.fullname,
+                    content: content
+                }),
+                success: function(response) {
+                    if (response.code === 200) {
+                        alert('保存成功');
+                        $('#editModal').modal('hide');
+                        loadFiles();
+                    } else {
+                        alert('保存失败: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('保存失败: ' + error);
+                }
+            });
+        }
+        
+        // 重命名文件
+        function renameFile(file) {
+            $('#renameModal').data('file', file);
+            $('#newFileName').val(file.name);
+            $('#renameModal').modal('show');
+        }
+        
+        function renameFileByIndex(index) {
+            const file = filteredFileList[index];
+            if (file) renameFile(file);
+        }
+        
+        function doRename() {
+            const file = $('#renameModal').data('file');
+            const newName = $('#newFileName').val().trim();
+            
+            if (!newName) {
+                alert('请输入新名称');
+                return;
+            }
+            
+            if (newName === file.name) {
+                $('#renameModal').modal('hide');
+                return;
+            }
+            
+            const newPath = file.fullname.replace(new RegExp(`${file.name}$`), newName);
+            
+            $.ajax({
+                url: `${API_BASE}/move`,
+                method: 'PUT',
+                headers: {
+                    'app-token': APP_TOKEN,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify({
+                    old_path: file.fullname,
+                    new_path: newPath
+                }),
+                success: function(response) {
+                    if (response.code === 200) {
+                        alert('重命名成功');
+                        $('#renameModal').modal('hide');
+                        loadFiles();
+                    } else {
+                        alert('重命名失败: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('重命名失败: ' + error);
+                }
+            });
+        }
+        
+        // 复制文件
+        function copyFile(file) {
+            fileclipboard.action = 'copy';
+            fileclipboard.files = [file.fullname];
+            $('#pasteBtnContainer').show();
+            alert(`已复制: ${file.name}`);
+        }
+        
+        // 剪切文件
+        function cutFile(file) {
+            fileclipboard.action = 'move';
+            fileclipboard.files = [file.fullname];
+            $('#pasteBtnContainer').show();
+            alert(`已剪切: ${file.name}`);
+        }
+        
+        // 粘贴文件
+        function pasteFiles() {
+            if (fileclipboard.files.length === 0) return;
+            
+            const promises = fileclipboard.files.map(oldPath => {
+                const fileName = oldPath.split('/').pop();
+                const newPath = currentPath.endsWith('/') ? 
+                    currentPath + fileName : 
+                    currentPath + '/' + fileName;
+                
+                const url = fileclipboard.action === 'copy' ? 
+                    `${API_BASE}/copy` : 
+                    `${API_BASE}/move`;
+                const method = fileclipboard.action === 'copy' ? 'POST' : 'PUT';
+                
+                return $.ajax({
+                    url: url,
+                    method: method,
+                    headers: {
+                        'app-token': APP_TOKEN,
+                        'Content-Type': 'application/json'
+                    },
+                    data: JSON.stringify({
+                        old_path: oldPath,
+                        new_path: newPath
+                    })
+                });
+            });
+            
+            Promise.all(promises).then(responses => {
+                const allSuccess = responses.every(r => r.code === 200);
+                if (allSuccess) {
+                    alert('粘贴成功');
+                    fileclipboard.files = [];
+                    $('#pasteBtnContainer').hide();
+                    loadFiles();
+                } else {
+                    alert('粘贴失败');
+                }
+            }).catch(error => {
+                alert('粘贴失败: ' + error);
+            });
+        }
+        
+        // 下载文件
+        function downloadFile(file) {
+            if (file.is_dir) {
+                downloadFolderAsZip(file);
+                return;
+            }
+            
+            // 直接下载文件
+            const downloadUrl = `${API_BASE}/download?path=${encodeURIComponent(file.fullname)}`;
+            window.open(downloadUrl, '_blank');
+        }
+        
+        function downloadFileByIndex(index) {
+            const file = filteredFileList[index];
+            if (file) downloadFile(file);
+        }
+        
+        // 下载文件夹为ZIP
+        function downloadFolderAsZip(file) {
+            if (!file.is_dir) {
+                downloadFile(file);
+                return;
+            }
+            
+            const zipFileName = file.name + '.zip';
+            
+            // 先压缩
+            $.ajax({
+                url: `${API_BASE}/zip`,
+                method: 'POST',
+                headers: {
+                    'app-token': APP_TOKEN,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify({
+                    dst_path: currentPath,
+                    paths: [file.fullname],
+                    zip_file_name: zipFileName
+                }),
+                success: function(response) {
+                    if (response.code === 200) {
+                        // 然后下载
+                        const zipPath = currentPath.endsWith('/') ? 
+                            currentPath + zipFileName : 
+                            currentPath + '/' + zipFileName;
+                        
+                        setTimeout(() => {
+                            const downloadUrl = `${API_BASE}/download?path=${encodeURIComponent(zipPath)}`;
+                            window.open(downloadUrl, '_blank');
+                            
+                            // 可选：删除压缩文件
+                            setTimeout(() => {
+                                deleteZipFile(zipPath);
+                            }, 30000); // 30秒后删除
+                        }, 1000); // 等待1秒让压缩完成
+                    } else {
+                        alert('压缩失败: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('压缩失败: ' + error);
+                }
+            });
+        }
+        
+        // 删除ZIP文件
+        function deleteZipFile(zipPath) {
+            $.ajax({
+                url: `${API_BASE}/delete`,
+                method: 'DELETE',
+                headers: {
+                    'app-token': APP_TOKEN
+                },
+                data: {
+                    path: zipPath
+                }
+            });
+        }
+        
+        // 压缩文件
+        function zipFile(file) {
+            const zipFileName = prompt('请输入压缩文件名（包含.zip扩展名）:', file.name + '.zip');
+            if (!zipFileName) return;
+            
+            $.ajax({
+                url: `${API_BASE}/zip`,
+                method: 'POST',
+                headers: {
+                    'app-token': APP_TOKEN,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify({
+                    dst_path: currentPath,
+                    paths: [file.fullname],
+                    zip_file_name: zipFileName
+                }),
+                success: function(response) {
+                    if (response.code === 200) {
+                        alert('压缩成功');
+                        loadFiles();
+                    } else {
+                        alert('压缩失败: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('压缩失败: ' + error);
+                }
+            });
+        }
+        
+        // 解压文件
+        function unzipFile(file) {
+            if (!file.name.endsWith('.zip')) {
+                alert('只能解压ZIP文件');
+                return;
+            }
+            
+            if (!confirm(`确定要解压 ${file.name} 到当前目录吗？`)) return;
+            
+            $.ajax({
+                url: `${API_BASE}/unzip`,
+                method: 'POST',
+                headers: {
+                    'app-token': APP_TOKEN,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify({
+                    dst_path: currentPath,
+                    zip_file_path: file.fullname
+                }),
+                success: function(response) {
+                    if (response.code === 200) {
+                        alert('解压成功');
+                        loadFiles();
+                    } else {
+                        alert('解压失败: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('解压失败: ' + error);
+                }
+            });
+        }
+        
+        // 修改权限
+        function changePermission(file) {
+            $('#chmodModal').data('file', file);
+            $('#currentPermission').text(file.mode);
+            
+            // 解析权限
+            const mode = parseInt(file.mode, 8);
+            const owner = (mode >> 6) & 7;
+            const group = (mode >> 3) & 7;
+            const other = mode & 7;
+            
+            // 设置开关状态
+            $('#ownerRead').prop('checked', (owner & 4) !== 0);
+            $('#ownerWrite').prop('checked', (owner & 2) !== 0);
+            $('#ownerExecute').prop('checked', (owner & 1) !== 0);
+            
+            $('#groupRead').prop('checked', (group & 4) !== 0);
+            $('#groupWrite').prop('checked', (group & 2) !== 0);
+            $('#groupExecute').prop('checked', (group & 1) !== 0);
+            
+            $('#otherRead').prop('checked', (other & 4) !== 0);
+            $('#otherWrite').prop('checked', (other & 2) !== 0);
+            $('#otherExecute').prop('checked', (other & 1) !== 0);
+            
+            updatePermissionValue();
+            $('#chmodModal').modal('show');
+        }
+        
+        // 更新权限值显示
+        function updatePermissionValue() {
+            const owner = 
+                ($('#ownerRead').prop('checked') ? 4 : 0) +
+                ($('#ownerWrite').prop('checked') ? 2 : 0) +
+                ($('#ownerExecute').prop('checked') ? 1 : 0);
+            
+            const group = 
+                ($('#groupRead').prop('checked') ? 4 : 0) +
+                ($('#groupWrite').prop('checked') ? 2 : 0) +
+                ($('#groupExecute').prop('checked') ? 1 : 0);
+            
+            const other = 
+                ($('#otherRead').prop('checked') ? 4 : 0) +
+                ($('#otherWrite').prop('checked') ? 2 : 0) +
+                ($('#otherExecute').prop('checked') ? 1 : 0);
+            
+            const permissionValue = (owner * 64 + group * 8 + other).toString(8).padStart(3, '0');
+            $('#permissionValue').text(permissionValue);
+        }
+        
+        // 执行权限修改
+        function doChmod() {
+            const file = $('#chmodModal').data('file');
+            const mode = $('#permissionValue').text();
+            const recursive = $('#chmodRecursive').prop('checked');
+            
+            $.ajax({
+                url: `${API_BASE}/chmod`,
+                method: 'POST',
+                headers: {
+                    'app-token': APP_TOKEN,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify({
+                    path: file.fullname,
+                    mode: mode,
+                    recursive: recursive
+                }),
+                success: function(response) {
+                    if (response.code === 200) {
+                        alert('权限修改成功');
+                        $('#chmodModal').modal('hide');
+                        loadFiles();
+                    } else {
+                        alert('权限修改失败: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('权限修改失败: ' + error);
+                }
+            });
+        }
+        
+        // 删除文件
+        function deleteFile(file) {
+            if (!confirm(`确定要删除 ${file.name} 吗？`)) return;
+            
+            $.ajax({
+                url: `${API_BASE}/delete`,
+                method: 'DELETE',
+                headers: {
+                    'app-token': APP_TOKEN
+                },
+                data: {
+                    path: file.fullname
+                },
+                success: function(response) {
+                    if (response.code === 200) {
+                        alert('删除成功');
+                        loadFiles();
+                    } else {
+                        alert('删除失败: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('删除失败: ' + error);
+                }
+            });
+        }
+        
+        function deleteFileByIndex(index) {
+            const file = filteredFileList[index];
+            if (file) deleteFile(file);
+        }
+        
+        // 批量操作
+        function batchZipDownload() {
+            if (selectedFiles.size === 0) return;
+            
+            const paths = Array.from(selectedFiles);
+            const zipFileName = 'batch_files.zip';
+            
+            // 先压缩
+            $.ajax({
+                url: `${API_BASE}/zip`,
+                method: 'POST',
+                headers: {
+                    'app-token': APP_TOKEN,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify({
+                    dst_path: currentPath,
+                    paths: paths,
+                    zip_file_name: zipFileName
+                }),
+                success: function(response) {
+                    if (response.code === 200) {
+                        // 然后下载
+                        const zipPath = currentPath.endsWith('/') ? 
+                            currentPath + zipFileName : 
+                            currentPath + '/' + zipFileName;
+                        
+                        setTimeout(() => {
+                            const downloadUrl = `${API_BASE}/download?path=${encodeURIComponent(zipPath)}`;
+                            window.open(downloadUrl, '_blank');
+                            
+                            // 可选：删除压缩文件
+                            setTimeout(() => {
+                                deleteZipFile(zipPath);
+                            }, 30000);
+                        }, 1000);
+                    } else {
+                        alert('压缩失败: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('压缩失败: ' + error);
+                }
+            });
+        }
+        
+        function batchZipOnly() {
+            if (selectedFiles.size === 0) return;
+            
+            const zipFileName = prompt('请输入压缩文件名（包含.zip扩展名）:', 'batch_files.zip');
+            if (!zipFileName) return;
+            
+            const paths = Array.from(selectedFiles);
+            
+            $.ajax({
+                url: `${API_BASE}/zip`,
+                method: 'POST',
+                headers: {
+                    'app-token': APP_TOKEN,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify({
+                    dst_path: currentPath,
+                    paths: paths,
+                    zip_file_name: zipFileName
+                }),
+                success: function(response) {
+                    if (response.code === 200) {
+                        alert('压缩成功');
+                        loadFiles();
+                    } else {
+                        alert('压缩失败: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('压缩失败: ' + error);
+                }
+            });
+        }
+        
+        function batchCopy() {
+            if (selectedFiles.size === 0) return;
+            
+            fileclipboard.action = 'copy';
+            fileclipboard.files = Array.from(selectedFiles);
+            $('#pasteBtnContainer').show();
+            alert(`已复制 ${selectedFiles.size} 个文件/文件夹`);
+        }
+        
+        function batchCut() {
+            if (selectedFiles.size === 0) return;
+            
+            fileclipboard.action = 'move';
+            fileclipboard.files = Array.from(selectedFiles);
+            $('#pasteBtnContainer').show();
+            alert(`已剪切 ${selectedFiles.size} 个文件/文件夹`);
+        }
+        
+        function batchDelete() {
+            if (selectedFiles.size === 0) return;
+            
+            if (!confirm(`确定要删除选中的 ${selectedFiles.size} 个文件/文件夹吗？`)) return;
+            
+            const promises = Array.from(selectedFiles).map(path => {
+                return $.ajax({
+                    url: `${API_BASE}/delete`,
+                    method: 'DELETE',
+                    headers: {
+                        'app-token': APP_TOKEN
+                    },
+                    data: {
+                        path: path
+                    }
+                });
+            });
+            
+            Promise.all(promises).then(responses => {
+                const allSuccess = responses.every(r => r.code === 200);
+                if (allSuccess) {
+                    alert('删除成功');
+                    selectedFiles.clear();
+                    loadFiles();
+                } else {
+                    alert('部分文件删除失败');
+                }
+            }).catch(error => {
+                alert('删除失败: ' + error);
+            });
+        }
+        
+        // 上传相关功能
+        function handleFileSelect(files) {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                uploadQueue.push({
+                    file: file,
+                    path: currentPath.endsWith('/') ? currentPath + file.name : currentPath + '/' + file.name,
+                    type: 'file',
+                    status: 'pending',
+                    progress: 0
+                });
+            }
+            updateUploadQueue();
+        }
+        
+        function handleFolderSelect(files) {
+            if (files.length === 0) return;
+            
+            // 获取文件夹名称（从第一个文件的webkitRelativePath中提取）
+            const firstFile = files[0];
+            const relativePath = firstFile.webkitRelativePath;
+            const folderName = relativePath.split('/')[0];
+            
+            // 先创建文件夹
+            $.ajax({
+                url: `${API_BASE}/mkdir`,
+                method: 'POST',
+                headers: {
+                    'app-token': APP_TOKEN,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify({
+                    paths: [currentPath.endsWith('/') ? currentPath + folderName : currentPath + '/' + folderName]
+                }),
+                success: function(response) {
+                    if (response.code === 200) {
+                        // 添加文件到上传队列
+                        for (let i = 0; i < files.length; i++) {
+                            const file = files[i];
+                            const filePath = currentPath.endsWith('/') ? 
+                                currentPath + file.webkitRelativePath : 
+                                currentPath + '/' + file.webkitRelativePath;
+                            
+                            uploadQueue.push({
+                                file: file,
+                                path: filePath,
+                                type: 'file',
+                                status: 'pending',
+                                progress: 0
+                            });
+                        }
+                        updateUploadQueue();
+                    } else {
+                        alert('创建文件夹失败: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('创建文件夹失败: ' + error);
+                }
+            });
+        }
+        
+        function updateUploadQueue() {
+            const $queue = $('#uploadQueue');
+            $queue.empty();
+            
+            uploadQueue.forEach((item, index) => {
+                const $item = $(`
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fas ${item.type === 'file' ? 'fa-file' : 'fa-folder'} me-2"></i>
+                            ${item.file.name}
+                        </div>
+                        <div>
+                            <span class="badge bg-${getStatusBadgeColor(item.status)} me-2">
+                                ${getStatusText(item.status)}
+                            </span>
+                            ${item.status === 'uploading' ? 
+                                `<span class="badge bg-info">${item.progress}%</span>` : ''}
+                            <button class="btn btn-sm btn-outline-danger" onclick="removeFromQueue(${index})">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                `);
+                $queue.append($item);
+            });
+        }
+        
+        function getStatusBadgeColor(status) {
+            switch(status) {
+                case 'pending': return 'secondary';
+                case 'uploading': return 'info';
+                case 'success': return 'success';
+                case 'error': return 'danger';
+                default: return 'secondary';
+            }
+        }
+        
+        function getStatusText(status) {
+            switch(status) {
+                case 'pending': return '等待中';
+                case 'uploading': return '上传中';
+                case 'success': return '完成';
+                case 'error': return '失败';
+                default: return status;
+            }
+        }
+        
+        function removeFromQueue(index) {
+            uploadQueue.splice(index, 1);
+            updateUploadQueue();
+        }
+        
+        function startUpload() {
+            if (isUploading) return;
+            if (uploadQueue.length === 0) {
+                alert('没有文件需要上传');
+                return;
+            }
+            
+            isUploading = true;
+            $('#uploadProgressContainer').show();
+            
+            uploadNextFile();
+        }
+        
+        function uploadNextFile() {
+            const pendingIndex = uploadQueue.findIndex(item => item.status === 'pending');
+            if (pendingIndex === -1) {
+                // 所有文件上传完成
+                isUploading = false;
+                $('#uploadProgressContainer').hide();
+                $('#uploadProgress').css('width', '0%');
+                alert('上传完成');
+                loadFiles();
+                return;
+            }
+            
+            const item = uploadQueue[pendingIndex];
+            item.status = 'uploading';
+            updateUploadQueue();
+            
+            const formData = new FormData();
+            formData.append('file', item.file);
+            formData.append('path_with_file_name', item.path);
+            
+            $.ajax({
+                url: `${API_BASE}/upload`,
+                method: 'POST',
+                headers: {
+                    'app-token': APP_TOKEN
+                },
+                data: formData,
+                processData: false,
+                contentType: false,
+                xhr: function() {
+                    const xhr = new XMLHttpRequest();
+                    xhr.upload.addEventListener('progress', function(e) {
+                        if (e.lengthComputable) {
+                            const percent = Math.round((e.loaded / e.total) * 100);
+                            item.progress = percent;
+                            
+                            // 更新进度条
+                            const totalProgress = uploadQueue.reduce((sum, i) => {
+                                if (i.status === 'success') return sum + 100;
+                                if (i.status === 'uploading') return sum + i.progress;
+                                return sum;
+                            }, 0) / uploadQueue.length;
+                            
+                            $('#uploadProgress').css('width', totalProgress + '%');
+                            updateUploadQueue();
+                        }
+                    }, false);
+                    return xhr;
+                },
+                success: function(response) {
+                    if (response.code === 200) {
+                        item.status = 'success';
+                        item.progress = 100;
+                        uploadNextFile();
+                    } else {
+                        item.status = 'error';
+                        uploadNextFile();
+                    }
+                },
+                error: function() {
+                    item.status = 'error';
+                    uploadNextFile();
+                }
+            });
+        }
+        
+        // 新建文件
+        function showNewFileModal() {
+            $('#newFileNameInput').val('');
+            $('#newFileModal').modal('show');
+        }
+        
+        function createNewFile() {
+            const fileName = $('#newFileNameInput').val().trim();
+            if (!fileName) {
+                alert('请输入文件名');
+                return;
+            }
+            
+            const filePath = currentPath.endsWith('/') ? 
+                currentPath + fileName : 
+                currentPath + '/' + fileName;
+            
+            // 创建一个空的blob并上传
+            const blob = new Blob([''], { type: 'text/plain' });
+            const file = new File([blob], fileName);
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('path_with_file_name', filePath);
+            
+            $.ajax({
+                url: `${API_BASE}/upload`,
+                method: 'POST',
+                headers: {
+                    'app-token': APP_TOKEN
+                },
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    if (response.code === 200) {
+                        alert('文件创建成功');
+                        $('#newFileModal').modal('hide');
+                        loadFiles();
+                    } else {
+                        alert('文件创建失败: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('文件创建失败: ' + error);
+                }
+            });
+        }
+        
+        // 新建文件夹
+        function showNewFolderModal() {
+            $('#newFolderNameInput').val('');
+            $('#newFolderModal').modal('show');
+        }
+        
+        function createNewFolder() {
+            const folderName = $('#newFolderNameInput').val().trim();
+            if (!folderName) {
+                alert('请输入文件夹名');
+                return;
+            }
+            
+            const folderPath = currentPath.endsWith('/') ? 
+                currentPath + folderName : 
+                currentPath + '/' + folderName;
+            
+            $.ajax({
+                url: `${API_BASE}/mkdir`,
+                method: 'POST',
+                headers: {
+                    'app-token': APP_TOKEN,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify({
+                    paths: [folderPath]
+                }),
+                success: function(response) {
+                    if (response.code === 200) {
+                        alert('文件夹创建成功');
+                        $('#newFolderModal').modal('hide');
+                        loadFiles();
+                    } else {
+                        alert('文件夹创建失败: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('文件夹创建失败: ' + error);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

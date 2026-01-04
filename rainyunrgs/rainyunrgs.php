@@ -12,16 +12,12 @@ function rainyunrgs_ConfigOptions()
 		["type" => "text", "name" => "base_disk", "description" => "*系统盘", "key" => "base_disk"],
 		["type" => "text", "name" => "data_disk", "description" => "*数据盘", "key" => "data_disk"],
 		["type" => "text", "name" => "os_id", "description" => "*系统镜像ID", "key" => "os_id"],
-		["type" => "text", "name" => "duration", "description" => "*付款月数", "default" => "1", "key" => "duration"],
-		// ["type" => "text", "name" => "net_in", "description" => "下行带宽", "key" => "net_in"],
-		// ["type" => "text", "name" => "egg_type_id", "description" => "游戏类型ID", "key" => "egg_type_id"],
-		// ["type" => "text", "name" => "panel_user", "description" => "独立面板用户", "default" => "null", "key" => "panel_user"],
-		// ["type" => "text", "name" => "pay_mode", "description" => "*付款周期", "default" => "month", "key" => "pay_mode"],
-		["type" => "text", "name" => "subtype", "description" => "*服务器类型(VPS是kvm,暂不支持面板)", "default" => "kvm", "key" => "subtype"],
+		["type" => "text", "name" => "egg_type_id", "description" => "游戏类型ID", "key" => "egg_type_id"],
+		["type" => "text", "name" => "subtype", "description" => "*服务器类型(VPS是kvm,雨云面板是k8s_panel)", "default" => "kvm", "key" => "subtype"],
 		["type" => "text", "name" => "plan_id", "description" => "*计费套餐(plan_id,在雨云购买页显示)", "key" => "plan_id"],
-		["type" => "yesno", "name" => "try", "description" => "是否试用", "default" => false, "key" => "try"],
-		["type" => "text", "name" => "with_eip_num", "description" => "独立ip数量", "default" => "0", "key" => "with_eip_num"]
-		["type" => "yesno", "name" => "cpu_limit_mode", "description" => "用余额结算电费", "default" => "false", "key" => "cpu_limit_mode"], 
+		["type" => "text", "name" => "with_eip_num", "description" => "独立ip数量", "default" => "0", "key" => "with_eip_num"],
+		["type" => "text", "name" => "allocation", "description" => "对外端口数", "default" => "5", "key" => "allocation"],
+		["type" => "text", "name" => "online_mode", "description" => "是否为在线模式", "default" => "true", "key" => "online_mode"],
 	];
 }
 
@@ -41,11 +37,6 @@ function rainyunrgs_Chart(){
 					'name'=>'系统盘',
 					'value'=>'vda'
 				],
-				// [
-				// 	'name'=>'数据盘',
-				// 	'value'=>'vdb'
-				// ],
-				// 暂时注释了 因为好像雨云就给一个 - 
 			]
 		],
 		'flow'=>[
@@ -60,7 +51,7 @@ function rainyunrgs_ChartData($params){
 	if(empty($vserverid)){ return ['status'=>'error', 'msg'=>'数据获取失败']; }
 	
 	// 请求数据
-	$start = $_GET["start"]/1000 ? $_GET["start"]/1000 : strtotime('-10 days');
+	$start = $_GET["start"]/1000 ? $_GET["start"]/1000 : strtotime('-7 days');
 	$end = $_GET["end"]/1000 ? $_GET["end"]/1000 : time();
 	$url = $params["server_host"] . "/product/rgs/" . $vserverid . "/monitor/?start_date=".$start."&end_date=".$end;
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
@@ -194,13 +185,15 @@ function rainyunrgs_ClientArea($params)
     $url = $params["server_host"] . "/product/rgs/" . $vserverid;
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
 	$res = rainyunrgs_Curl($url, null, 30, "GET", $header);
-	// if($res["data"]["Data"]["TrafficBytes"] || $res["data"]["Data"]["TrafficResetDate"] || $res["data"]["Data"]["TrafficBytesToday"]){
-	//     $panel["Traffic"] = ["name" => "流量/带宽"];
-	// }
-	// $panel["DiskList"] = ["name" => "弹性云盘"];
-	if ($res["data"]["Data"]["MainIPv4"] == "-") {
+	if ($res["data"]["Data"]["Plan"]["subtype"] == "k8s_panel"){
+		$panel["Terminal"] = ["name" => "终端"];
+		$panel["FileManage"] = ["name" => "文件管理"];
+		$panel["GameSettings"] = ["name" => "游戏设置"];
+	}
+	if ($res["data"]["Data"]["MainIPv4"] == "-" || empty($res["data"]["Data"]["MainIPv4"])) {
 		$panel["NAT"] = ["name" => "NAT转发"];
 	}
+
 	return $panel;
 }
 function rainyunrgs_ClientAreaOutput($params, $key)
@@ -210,62 +203,131 @@ function rainyunrgs_ClientAreaOutput($params, $key)
 		return "产品参数错误";
 	}
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-	$detail_url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid;
+	$detail_url = $params["server_host"] . "/product/rgs/" . $vserverid;
 	$res = rainyunrgs_Curl($detail_url, [], 10, "GET", $header);
 	if ($key == "NAT") {
-		return ["template" => "templates/NAT.html", "vars" => ["list" => $res["data"]["NatList"], "ip" => $res["data"]["Data"]["NatPublicIP"]]];
+		return ["template" => "templates/NAT.html", "vars" => ["list" => $res["data"]["NatList"], "ip" => $res["data"]["Data"]["NatPublicIP"],"domain"=>$res["data"]["Data"]["NatPublicDomain"]]];
+	}else if($key == "Terminal") {
+		return ["template" => "templates/Terminal.html", "vars" => ["k8s_panel_helper_domain" => $res["data"]["Data"]["k8s_panel_helper_domain"], "k8s_panel_helper_token" => $res["data"]["Data"]["k8s_panel_helper_token"], "k8s_panel_namespace" => $res["data"]["Data"]["k8s_panel_namespace"]]];
+	}else if($key == "FileManage") {
+		return ["template" => "templates/FileManage.html", "vars" => ["k8s_panel_helper_domain" => $res["data"]["Data"]["k8s_panel_helper_domain"], "k8s_panel_helper_token" => $res["data"]["Data"]["k8s_panel_helper_token"], "k8s_panel_namespace" => $res["data"]["Data"]["k8s_panel_namespace"]]];
+	}else if($key == "GameSettings") {
+		return ["template" => "templates/GameSettings.html", "vars" => ["EggType"=>$res["data"]["Data"]["EggType"],"k8s_panel_start_command" => $res["data"]["Data"]["k8s_panel_start_command"], "k8s_panel_sftp_domain" => $res["data"]["Data"]["k8s_panel_sftp_domain"], "k8s_panel_sftp_setting" => $res["data"]["Data"]["k8s_panel_sftp_setting"], "k8s_panel_database_host"=> $res["data"]["Data"]["k8s_panel_database_host"], "k8s_panel_database_setting"=> $res["data"]["Data"]["k8s_panel_database_setting"]]];
 	}
-	// elseif($key == "DiskList"){
-	//     return [
-	// 		'template'=>'templates/DiskList.html',
-	// 		'vars'=>[
-	// 		    "list"=>$res["data"],
-	// 		    "disk_ssd_unit_price"=>$params["configoptions"]["disk_ssd_unit_price"] ?: 0.4,
-	// 		    "disk_hdd_unit_price"=>$params["configoptions"]["disk_hdd_unit_price"] ?: 0.1,
-	// 		    "disk_chdd_unit_price"=>$params["configoptions"]["disk_chdd_unit_price"] ?: 0.2,
-	// 		    "disk_bak"=>$params["configoptions"]["disk_bak"] ?: 0.1
-	// 		]
-	// 	];
-	// }elseif($key == "Traffic"){
-	//     if($res["data"]["Data"]["TrafficBytesToday"]<1000000){
-	//         $TrafficToday = round($res["data"]["Data"]["TrafficBytesToday"]/ 1024, 0)."KB";
-	//     }elseif($res["data"]["Data"]["TrafficBytesToday"]<1073741824){
-	//         $TrafficToday = round($res["data"]["Data"]["TrafficBytesToday"]/ 1048576, 1)."MB";
-	//     }else{
-	//         $TrafficToday = round($res["data"]["Data"]["TrafficBytesToday"]/ 1073741824, 1)."GB";
-	//     }
-	//     if($res["data"]["Data"]["TrafficBytes"]<1000000){
-	//         $Traffic = round($res["data"]["Data"]["TrafficBytes"]/ 1024, 0)."KB";
-	//     }elseif($res["data"]["Data"]["TrafficBytes"]<1073741824){
-	//         $Traffic = round($res["data"]["Data"]["TrafficBytes"]/ 1048576, 1)."MB";
-	//     }else{
-	//         $Traffic = round($res["data"]["Data"]["TrafficBytes"]/ 1073741824, 1)."GB";
-	//     }
-	//     return [
-	// 		'template'=>'templates/Traffic.html',
-	// 		'vars'=>[
-	// 		    "list"=>$res["data"],
-	// 		    "billingcycle"=>$params["billingcycle"],
-	// 		    // "traffic300"=>($params["configoptions"]["traffic300"] ?: $res["data"]["Data"]["Plan"]["traffic_price"]["300"]) ?: 15,
-	// 		    // "traffic1024"=>($params["configoptions"]["traffic1024"] ?: $res["data"]["Data"]["Plan"]["traffic_price"]["1024"]) ?: 35,
-	// 		    "traffic".explode("|", $params["configoptions"]["trafficdiy1"])[0]=>explode("|", $params["configoptions"]["trafficdiy1"])[1],
-	// 		    "traffic".explode("|", $params["configoptions"]["trafficdiy2"])[0]=>explode("|", $params["configoptions"]["trafficdiy2"])[1],
-	// 		    "traffic".explode("|", $params["configoptions"]["trafficdiy3"])[0]=>explode("|", $params["configoptions"]["trafficdiy3"])[1],
-	// 		    "time"=>date("Y年m月d日", $res["data"]["Data"]["TrafficResetDate"]),
-	// 		    "Traffic"=>$Traffic,
-	// 		    "TrafficToday"=>$TrafficToday,
-	// 		    "TrafficPerMonth"=>$res["data"]["Data"]["Plan"]["TrafficBaseGB"],
-	// 		    "TrafficDayLimit"=>round($res["data"]["Data"]["TrafficBytesDayLimit"]/ 1073741824, 1),
-	// 		    "TrafficOnLimit"=>$res["data"]["Data"]["TrafficOnLimit"]
-	// 		]
-	// 	];
-	// }
 }
 function rainyunrgs_AllowFunction()
 {
-	return ["client" => ["CreateSnap", "DeleteSnap", "RestoreSnap", "CreateBackup", "DeleteBackup", "RestoreBackup", "CreateSecurityGroup", "DeleteSecurityGroup", "ApplySecurityGroup", "ShowSecurityGroupAcl", "CreateSecurityGroupAcl", "DeleteSecurityGroupAcl", "MountCdRom", "UnmountCdRom", "addNatAcl", "delNatAcl", "addNatWeb", "delNatWeb", "addNat", "delNat", "ssh", "xtermjs" , "getCloudMonthFee" ,"edisk" ,"getCloudtzMonthFee" ,"trafficlimit" ,"trafficcharge"]
+	return ["client" => ["CreateSnap", "DeleteSnap", "RestoreSnap", "CreateBackup", "DeleteBackup", "RestoreBackup", "CreateSecurityGroup", "DeleteSecurityGroup", "ApplySecurityGroup", "ShowSecurityGroupAcl", "CreateSecurityGroupAcl", "DeleteSecurityGroupAcl", "MountCdRom", "UnmountCdRom", "addNatAcl", "delNatAcl", "addNatWeb", "delNatWeb", "addNat", "delNat", "ssh", "xtermjs", "SetStartCommand", "StartSFTP", "CloseSFTP", "StartMySQL", "CloseMySQL", "egg", "ChangeEgg"]
 	,
 	"admin"=>["xtermjs"]];
+}
+function rainyunrgs_egg($params){
+	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
+	$url = $params["server_host"] . "/product/rgs/egg";
+	$res = rainyunrgs_Curl($url, null, 30, "GET", $header);
+	if (isset($res["code"]) && $res["code"] == 200) {
+		$data["egg"] = [];
+		foreach($res["data"] as $egg) {
+			$egg["icon_url"] = str_replace('https://rainyun-public.cn-nb1.rains3.com/assets/rgs-', 'https://ft.mhjz1.cn/assets/mgs-', $egg["icon_url"]);
+			$data["egg"][] = $egg;
+		}
+	} else {
+		return ["status" => "error", "msg" => $res["message"] ?: "获取失败"];
+	}
+	$url = $params["server_host"] . "/product/rgs/egg_type";
+	$res = rainyunrgs_Curl($url, null, 30, "GET", $header);
+	if (isset($res["code"]) && $res["code"] == 200) {
+		$data["egg_type"] = [];
+		foreach($res["data"] as $egg_type) {
+			$egg_type["egg"]["icon_url"] = str_replace('https://rainyun-public.cn-nb1.rains3.com/assets/rgs-', 'https://ft.mhjz1.cn/assets/mgs-', $egg_type["egg"]["icon_url"]);
+			$data["egg_type"][] = $egg_type;
+		}
+	} else {
+		return ["status" => "error", "msg" => $res["message"] ?: "获取失败"];
+	}
+	$url = $params["server_host"] . "/product/rgs/egg_server";
+	$res = rainyunrgs_Curl($url, null, 30, "GET", $header);
+	if (isset($res["code"]) && $res["code"] == 200) {
+		$data["egg_server"] = [];
+		foreach($res["data"] as $egg_server) {
+			$egg_server["icon_url"] = str_replace('https://rainyun-public.cn-nb1.rains3.com/assets/rgs-', 'https://ft.mhjz1.cn/assets/mgs-', $egg_server["icon_url"]);
+			$data["egg_server"][] = $egg_server;
+		}
+	} else {
+		return ["status" => "error", "msg" => $res["message"] ?: "获取失败"];
+	}
+	return ["status" => "success", "msg" => "获取成功", "data" => $data];
+}
+function rainyunrgs_StartMySQL($params){
+	$vserverid = rainyunrgs_GetServerid($params);
+	if (empty($vserverid)) {
+		return "产品参数错误";
+	}
+	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
+	$url = $params["server_host"] . "/product/rgs/" . $vserverid . "/k8s-panel/database";
+	$res = rainyunrgs_Curl($url, json_encode(["is_enabled"=>true,"version"=>"mysql-5.7"]), 30, "PATCH", $header);
+	if (isset($res["code"]) && $res["code"] == 200) {
+		return ["status" => "success", "msg" => "启动成功"];
+	} else {
+		return ["status" => "error", "msg" => $res["message"] ?: "启动数据库失败"];
+	}
+}
+function rainyunrgs_CloseMySQL($params){
+	$vserverid = rainyunrgs_GetServerid($params);
+	if (empty($vserverid)) {
+		return "产品参数错误";
+	}
+	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
+	$url = $params["server_host"] . "/product/rgs/" . $vserverid . "/k8s-panel/database";
+	$res = rainyunrgs_Curl($url, json_encode(["is_enabled"=>false,"version"=>"mysql-5.7"]), 30, "PATCH", $header);
+	if (isset($res["code"]) && $res["code"] == 200) {
+		return ["status" => "success", "msg" => "关闭成功"];
+	} else {
+		return ["status" => "error", "msg" => $res["message"] ?: "关闭数据库失败"];
+	}
+}
+function rainyunrgs_StartSFTP($params){
+	$vserverid = rainyunrgs_GetServerid($params);
+	if (empty($vserverid)) {
+		return "产品参数错误";
+	}
+	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
+	$url = $params["server_host"] . "/product/rgs/" . $vserverid . "/k8s-panel/sftp";
+	$password = randStr(16);
+	$res = rainyunrgs_Curl($url, json_encode(["username"=>$params["domain"],"password"=>$password]), 30, "PATCH", $header);
+	if (isset($res["code"]) && $res["code"] == 200) {
+		return ["status" => "success", "msg" => "启动成功"];
+	} else {
+		return ["status" => "error", "msg" => $res["message"] ?: "启动SFTP失败"];
+	}
+}
+function rainyunrgs_CloseSFTP($params){
+	$vserverid = rainyunrgs_GetServerid($params);
+	if (empty($vserverid)) {
+		return "产品参数错误";
+	}
+	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
+	$url = $params["server_host"] . "/product/rgs/" . $vserverid . "/k8s-panel/sftp";
+	$res = rainyunrgs_Curl($url, json_encode(["username"=>"","password"=>""]), 30, "PATCH", $header);
+	if (isset($res["code"]) && $res["code"] == 200) {
+		return ["status" => "success", "msg" => "启动成功"];
+	} else {
+		return ["status" => "error", "msg" => $res["message"] ?: "启动SFTP失败"];
+	}
+}
+function rainyunrgs_SetStartCommand($params){
+	$vserverid = rainyunrgs_GetServerid($params);
+	if (empty($vserverid)) {
+		return "产品参数错误";
+	}
+	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
+	$url = $params["server_host"] . "/product/rgs/" . $vserverid . "/k8s-panel/set-start-command";
+	$res = rainyunrgs_Curl($url, json_encode(["command"=>input("post.command")]), 30, "POST", $header);
+	if (isset($res["code"]) && $res["code"] == 200) {
+		return ["status" => "success", "msg" => "设置成功"];
+	} else {
+		return ["status" => "error", "msg" => $res["message"] ?: "设置启动命令失败"];
+	}
 }
 function rainyunrgs_CrackPassword($params, $new_pass)
 {
@@ -288,7 +350,7 @@ function rainyunrgs_addNat($params)
 	$post = input("post.");
 	$vserverid = rainyunrgs_GetServerid($params);
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-	$url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid . "/nat";
+	$url = $params["server_host"] . "/product/rgs/" . $vserverid . "/nat";
 	$post_data = "\n\n{\n    \"port_in\": " . trim($post["port_in"]) . ",\n    \"port_out\": " . trim($post["port_out"]) . ",\n    \"port_type\": \"" . trim($post["port_type"]) . "\"\n}\n\n";
 	$res = rainyunrgs_Curl($url, $post_data, 30, "POST", $header);
 	if (isset($res["code"]) && $res["code"] == 200) {
@@ -307,7 +369,7 @@ function rainyunrgs_delNat($params)
 	$post = input("post.");
 	$vserverid = rainyunrgs_GetServerid($params);
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-	$url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid . "/nat/?nat_id=" . trim($post["nat_id"]);
+	$url = $params["server_host"] . "/product/rgs/" . $vserverid . "/nat/?nat_id=" . trim($post["nat_id"]);
 	$res = rainyunrgs_Curl($url, [], 30, "DELETE", $header);
 	if (isset($res["code"]) && $res["code"] == 200) {
 		$description = sprintf("NAT转发删除成功");
@@ -337,11 +399,11 @@ function rainyunrgs_Renew($params)
         $duration = "1";
     }
     $header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-    $url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid . "/renew";
+    $url = $params["server_host"] . "/product/rgs/" . $vserverid . "/renew";
     $post_data = "\n\n{\n    \"duration\": " . $duration . ",\n    \"with_coupon_id\": 0\n}\n\n";
     $res = rainyunrgs_Curl($url, $post_data, 30, "POST", $header);
     if (isset($res["code"]) && $res["code"] == 200) {
-        $detail_url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid;
+        $detail_url = $params["server_host"] . "/product/rgs/" . $vserverid;
         $res1 = rainyunrgs_Curl($detail_url, [], 10, "GET", $header);
         $str = $res1["Data"]["ExpDate"];
         $str1 = $res1["data"]["Data"]["MonthPrice"];
@@ -354,7 +416,6 @@ function rainyunrgs_Renew($params)
             "billing_cycle" => $params["billingcycle"],
             "renew_duration" => $duration
         ];
-        writeLog($log);
         return $log;
     } else {
         $log = [
@@ -365,28 +426,35 @@ function rainyunrgs_Renew($params)
             "billing_cycle" => $params["billingcycle"],
             "renew_duration" => $duration
         ];
-        writeLog($log);
         return $log;
     }
 }
 
-function writeLog($log)
-{
-    // 获取当前运行目录
-    $currentDir = getcwd();
-    // 创建日志文件路径
-    $logFile = $currentDir . "/rgs-log.json";
-    // 读取现有日志内容
-    $existingLogs = [];
-    if (file_exists($logFile)) {
-        $existingLogs = json_decode(file_get_contents($logFile), true);
+function rainyunrgs_ChangeEgg($params){
+    $vserverid = rainyunrgs_GetServerid($params);
+    if (empty($vserverid)) {
+        return "产品参数错误";
     }
-    // 添加新日志
-    $existingLogs[] = $log;
-    // 写入日志文件
-    file_put_contents($logFile, json_encode($existingLogs, JSON_PRETTY_PRINT));
+	$post = input("post.");
+    if (empty($post["egg_type_id"])) {
+        return "请选择游戏版本";
+    }
+	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
+	$url = $params["server_host"] . "/product/rgs/" . $vserverid . "/change-egg";
+	$post_data = [
+		"egg_type_id"=> (int)$post["egg_type_id"],
+		"save_dirs"=> $post["save_dirs"]?:[],
+	];
+	if(isset($post["online_mode"])){
+		$post_data["online_mode"] = filter_var($post["online_mode"], FILTER_VALIDATE_BOOLEAN);
+	}
+	$res = rainyunrgs_Curl($url, json_encode($post_data), 30, "POST", $header);
+	if (isset($res["code"]) && $res["code"] == 200) {
+		return ["status" => "success", "msg" => "切换游戏版本成功"];
+	} else {
+		return ["status" => "error", "msg" => $res["message"] ?: "切换游戏版本失败"];
+	}
 }
-
 function rainyunrgs_Reinstall($params)
 {
     $vserverid = rainyunrgs_GetServerid($params);
@@ -397,7 +465,7 @@ function rainyunrgs_Reinstall($params)
         return "操作系统错误";
     }
     $header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-    $url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid . "/changeos";
+    $url = $params["server_host"] . "/product/rgs/" . $vserverid . "/changeos";
     $post_data = "\n\n{\n    \"os_id\": " . $params["reinstall_os"] . "\n}\n\n";
     $res = rainyunrgs_Curl($url, $post_data, 30, "POST", $header);
     if ($res["code"] == 200) {
@@ -424,7 +492,7 @@ function rainyunrgs_Reinstall($params)
     }
 }
 
-$config_field = ["cpu","memory","net_out","base_disk","data_disk"]
+$config_field = ["cpu","memory","net_out","base_disk","data_disk"];
 
 
 function rainyunrgs_CreateAccount($params)
@@ -433,40 +501,57 @@ function rainyunrgs_CreateAccount($params)
     if (!empty($vserverid)) {
         return "已开通,不能重复开通";
     }
+	$try = false;
     if ($params["billingcycle"] == "monthly") {
-        $duration = "1";
+        $duration = 1;
     } elseif ($params["billingcycle"] == "annually") {
-        $duration = "12";
+        $duration = 12;
     } elseif ($params["billingcycle"] == "quarterly") {
-        $duration = "3";
+        $duration = 3;
     } elseif ($params["billingcycle"] == "semiannually") {
-        $duration = "6";
+        $duration = 6;
     } elseif ($params["billingcycle"] == "ontrial") {
-        $duration = "1";
-        $params["configoptions"]["try"] = true
+        $duration = 1;
+        $try = true;
     } else {
-        $duration = "1";
+        $duration = 1;
     }
-	$params["configoptions"]["duration"] = $duration
 
     $header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-    $url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/";
+    $url = $params["server_host"] . "/product/rgs/";
 
-	$params["configoptions"]["with_eip_num"] = (int)$params["configoptions"]["with_eip_num"]
-
-	$params["configoptions"]["config"] = []
-
-	// 具体配置项
-	foreach($config_field as $k) {
-		$params["configoptions"]["config"][$k] = $params["configoptions"][$k]
+    $post_data = [
+		"app_vars"=>[],
+		"config"=>[
+			"cpu"=>(int)$params["configoptions"]["cpu"],
+			"memory"=>(int)$params["configoptions"]["memory"],
+			"base_disk"=>(int)$params["configoptions"]["base_disk"],
+			"data_disk"=>(int)$params["configoptions"]["data_disk"]?:0,
+			"net_out"=>(int)$params["configoptions"]["net_out"]?:50,
+		],
+		"duration"=>(int)$duration,
+		"pay_mode"=>"month",
+		"os_id"=>(int)$params["configoptions"]["os_id"]?:0,
+		"egg_type_id"=>(int)$params["configoptions"]["egg_type_id"]?:0,
+		"panel_user"=>null,
+		"with_eip_num"=>(int)$params["configoptions"]["with_eip_num"]?:0,
+		"with_eip_flags"=>"",
+		"with_eip_type"=>"",
+		"cpu_limit_mode"=>false,
+		"try"=>$try,
+		"node_uuid"=>"",
+		"online_mode"=>filter_var($params["configoptions"]["online_mode"], FILTER_VALIDATE_BOOLEAN),
+	];
+	if($params["configoptions"]["subtype"] == "k8s_panel"){
+		$post_data["config"]["allocation"] = (int)$params["configoptions"]["allocation"];
+		$post_data["config"]["database"] = 0;
+		$post_data["config"]["backup"] = 0;
 	}
-
-    $post_data = $params["configoptions"]
-    $res = rainyunrgs_Curl($url, $post_data, 10, "POST", $header);
+    $res = rainyunrgs_Curl($url, json_encode($post_data), 30, "POST", $header);
     if (isset($res["code"]) && $res["code"] == 200) {
         $server_id = $res["data"]["ID"];
         $sys_pwd = $res["data"]["DefaultPass"];
-        $detail_url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $server_id;
+        $detail_url = $params["server_host"] . "/product/rgs/" . $server_id;
         $res1 = rainyunrgs_Curl($detail_url, [], 10, "GET", $header);
         $natip = $res1["data"]["Data"]["NatPublicIP"];
         $ipv4 = $res1["data"]["Data"]["MainIPv4"];
@@ -488,6 +573,8 @@ function rainyunrgs_CreateAccount($params)
         } else {
             $username = "root";
         }
+		$url = $params["server_host"] . "/product/rcs/" . $vserverid . "/tag";
+		$res = rainyunrgs_Curl($url, json_encode(["tag_name"=>$params["domain"]]), 30, "PATCH", $header);
 		// 存入IP
 		$ip = [];
 		if($res1["data"]["Data"]["MainIPv4"] == "-"){
@@ -530,41 +617,34 @@ function rainyunrgs_Status($params)
 		return "产品参数错误";
 	}
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-	$detail_url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid;
+	$detail_url = $params["server_host"] . "/product/rgs/" . $vserverid;
 	$res = rainyunrgs_Curl($detail_url, [], 10, "GET", $header);
+	$result["status"] = "success";
 	if (isset($res["code"]) && $res["code"] == 200) {
 		if ($res["data"]["Data"]["Status"] == "running") {
-			$result["status"] = "success";
 			$result["data"]["status"] = "on";
 			$result["data"]["des"] = "运行中";
-			return $result;
 		} elseif ($res["data"]["Data"]["Status"] == "stopped") {
-			$result["status"] = "success";
 			$result["data"]["status"] = "off";
 			$result["data"]["des"] = "已停止";
-			return $result;
 		} elseif ($res["data"]["Data"]["Status"] == "creating") {
-			$result["status"] = "success";
 			$result["data"]["status"] = "process";
 			$result["data"]["des"] = "创建中";
-			return $result;
 		} elseif ($res["data"]["Data"]["Status"] == "stopping") {
-			$result["status"] = "success";
 			$result["data"]["status"] = "process";
 			$result["data"]["des"] = "正在停止";
-			return $result;
 		} elseif ($res["data"]["Data"]["Status"] == "booting") {
-			$result["status"] = "success";
 			$result["data"]["status"] = "process";
 			$result["data"]["des"] = "正在操作";
-			return $result;
 		} elseif ($res["data"]["Data"]["Status"] == "banned") {
-			$result["status"] = "success";
 			$result["data"]["status"] = "off";
 			$result["data"]["des"] = "因违规已禁封";
-			return $result;
 		}
+	}else{
+		$result["data"]["status"] = "unknown";
+		$result["data"]["des"] = "未知";
 	}
+	return $result;
 }
 
 function rainyunrgs_Sync($params)
@@ -627,7 +707,7 @@ function rainyunrgs_On($params)
     }
 
     $header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-    $url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid . "/start";
+    $url = $params["server_host"] . "/product/rgs/" . $vserverid . "/start";
     $post_data = [];
     $post_data["id"] = $vserverid;
     $res = rainyunrgs_Curl($url, $post_data, 10, "POST", $header);
@@ -651,7 +731,7 @@ function rainyunrgs_Off($params)
 		return "产品参数错误";
 	}
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-	$url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid . "/stop";
+	$url = $params["server_host"] . "/product/rgs/" . $vserverid . "/stop";
 	$post_data = [];
 	$post_data["id"] = $vserverid;
 	$res = rainyunrgs_Curl($url, $post_data, 10, "POST", $header);
@@ -671,7 +751,7 @@ function rainyunrgs_Reboot($params)
         }
 	}
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-	$url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid . "/reboot";
+	$url = $params["server_host"] . "/product/rgs/" . $vserverid . "/reboot";
 	$post_data = [];
 	$post_data["id"] = $vserverid;
 	$res = rainyunrgs_Curl($url, $post_data, 10, "POST", $header);
@@ -703,10 +783,10 @@ function rainyunrgs_ChangePackage($params)
 	}
 	// $old_plan_id = $params['old_configoptions']['plan_id'];
 	$plan_id = $params['configoptions']['plan_id'];
-	$dest_config = []
+	$dest_config = [];
 	// 具体配置项
 	foreach($config_field as $k) {
-		$dest_config[$k] = $params["configoptions"][$k]
+		$dest_config[$k] = $params["configoptions"][$k];
 	}
 
 	$url2 = $params["server_host"] . "/product/rgs/" . $vserverid . "/scale";
@@ -723,7 +803,15 @@ function rainyunrgs_ChangePackage($params)
 // VNC部分
 function rainyunrgs_Vnc($params){
     $vserverid = rainyunrgs_GetServerid($params);
-	// 请求数据
+	$urlcs =  isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+	$urlcs .= "://" . $_SERVER['HTTP_HOST'];
+	if($params["configoptions"]["subtype"] == "k8s_panel"){
+		$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
+		$detail_url = $params["server_host"] . "/product/rgs/" . $vserverid;
+		$res = rainyunrgs_Curl($detail_url, [], 10, "GET", $header);
+		$url = "wss://".$res["data"]["Data"]["k8s_panel_helper_domain"]."/".$res["data"]["Data"]["k8s_panel_namespace"]."/terminal?app_install_name=".$res["data"]["Data"]["k8s_panel_namespace"]."&method=attach";
+		return ["status" => "success", "url" => "$urlcs/plugins/servers/rainyunrgs/handlers/terminal.php?url=".rawurlencode(base64_encode($url))."&token=".rawurlencode($res["data"]["Data"]["k8s_panel_helper_token"]), "pass" => "YanJi-1116"];
+	}
 	$url = $params["server_host"] . "/product/rgs/" . $vserverid . "/vnc/?console_type=" . ( $params['rainyunrgs_console'] == "xtermjs" ? "xtermjs": "novnc" );
 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
 	$res = rainyunrgs_Curl($url, null, 30, "GET", $header);
@@ -731,8 +819,6 @@ function rainyunrgs_Vnc($params){
 	    return ["status" => "error", "msg" => "连接 VNC 请求失败，请稍后再试"];
 	}
 	$data = $res["data"];
-	$urlcs =  isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
-	$urlcs .= "://" . $_SERVER['HTTP_HOST'];
 	if(empty($data['VNCProxyURL'])){
 	    return ["status" => "success", "url" => "$urlcs/plugins/servers/rainyunrgs/handlers/vncRedirect.php?RequestURL=".rawurlencode($data["RequestURL"])."&RedirectURL=".rawurlencode($data["RedirectURL"])."&PVEAuth=".rawurlencode($data["PVEAuth"]), "pass" => "YanJi-1116"];
 	}else{
@@ -751,7 +837,7 @@ function rainyunrgs_xtermjs($params){
 
 function rainyunrgs_ClientButton($params){
     $os_info = \think\Db::name("host_config_options")->alias("a")->field("c.option_name")->leftJoin("product_config_options b", "a.configid=b.id")->leftJoin("product_config_options_sub c", "a.optionid=c.id")->where("a.relid", $params["hostid"])->where("b.option_type", 5)->find();
-    if (stripos($os_info["option_name"], "win") === false) {
+    if (!stripos($os_info["option_name"], "win") && $params["configoptions"]["subtype"] == "kvm") {
          $button = [
                    'xtermjs'=>[
                             'place'=>'console',   // 支持control和console 分别输出在控制和控制台
@@ -771,384 +857,6 @@ function rainyunrgs_ssh($params){
     return ["status" => "success", "msg" => "SSH启动成功<script type='text/javascript'>window.open('$url', '_blank');</script>"];
 }
 
-// function rainyunrgs_getCloudMonthFee($params){
-// 	$vserverid = rainyunrgs_GetServerid($params);
-// 	if (empty($vserverid)) {
-// 	    return ["status" => "error", "msg" => "产品参数错误"];
-// 	}
-// 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-// 	$detail_url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid;
-// 	$res = rainyunrgs_Curl($detail_url, [], 10, "GET", $header);
-// 	$disk_ssd_unit_price = $params["configoptions"]["disk_ssd_unit_price"] ?: 0.4;
-// 	$disk_hdd_unit_price = $params["configoptions"]["disk_hdd_unit_price"] ?: 0.1;
-// 	$disk_chdd_unit_price = $params["configoptions"]["disk_chdd_unit_price"] ?: 0.2;
-// 	$disk_bak = $params["configoptions"]["disk_bak"] ?: 0.1;
-// foreach ($res["data"]["EDiskList"] as $disk) {  
-//     $disk_type = $disk['DiskType'];  
-//     $slot = $disk['Slot'];  
-//     $backup = $disk['Backup'];  
-//     if($slot == 0){
-//         $size = $disk['Size'] - 30;
-//     }else{
-//         $size = $disk['Size'];
-//     }
-//     if($disk_type == 'ssd'){
-//         if($backup == true){
-//             $cost = $size * ($disk_ssd_unit_price + $disk_bak);
-//         }else{
-//             $cost = $size * $disk_ssd_unit_price;
-//         }
-//     }elseif($disk_type == 'hdd'){  
-//         if($backup == true){
-//             $cost = $size * ($disk_hdd_unit_price + $disk_bak);
-//         }else{
-//             $cost = $size * $disk_hdd_unit_price;
-//         } 
-//     }elseif($disk_type == 'chdd'){
-//         if($backup == true){
-//             $cost = $size * ($disk_chdd_unit_price + $disk_bak);
-//         }else{
-//             $cost = $size * $disk_chdd_unit_price;
-//         } 
-//     }
-//     $total_cost += $cost;  
-// }
-//     return ["status" => "success", "cost"=>$total_cost, "msg" => "获取成功"];
-// }
-
-// function rainyunrgs_getCloudtzMonthFee($params){
-// 	$vserverid = rainyunrgs_GetServerid($params);
-// 	if (empty($vserverid)) {
-// 	    return ["status" => "error", "msg" => "产品参数错误"];
-// 	}
-// 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-// 	$detail_url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid;
-// 	$res = rainyunrgs_Curl($detail_url, [], 10, "GET", $header);
-// 	$disk_ssd_unit_price = $params["configoptions"]["disk_ssd_unit_price"] ?: 0.4;
-// 	$disk_hdd_unit_price = $params["configoptions"]["disk_hdd_unit_price"] ?: 0.1;
-// 	$disk_chdd_unit_price = $params["configoptions"]["disk_chdd_unit_price"] ?: 0.2;
-// 	$disk_bak = $params["configoptions"]["disk_bak"] ?: 0.1;
-// foreach ($res["data"]["EDiskList"] as $disk) {  
-//     $disk_type = $disk['DiskType'];  
-//     $slot = $disk['Slot'];  
-//     $backup = $disk['Backup'];  
-//     if($slot == 0){
-//         $size = $disk['Size'] - 30;
-//     }else{
-//         $size = $disk['Size'];
-//     }
-//     if($disk_type == 'ssd'){
-//         if($backup == true){
-//             $cost = $size * ($disk_ssd_unit_price + $disk_bak);
-//         }else{
-//             $cost = $size * $disk_ssd_unit_price;
-//         }
-//     }elseif($disk_type == 'hdd'){  
-//         if($backup == true){
-//             $cost = $size * ($disk_hdd_unit_price + $disk_bak);
-//         }else{
-//             $cost = $size * $disk_hdd_unit_price;
-//         } 
-//     }elseif($disk_type == 'chdd'){
-//         if($backup == true){
-//             $cost = $size * ($disk_chdd_unit_price + $disk_bak);
-//         }else{
-//             $cost = $size * $disk_chdd_unit_price;
-//         } 
-//     }
-//     $total_cost += $cost;  
-// }
-//     $post = input('post.');
-//     unset($post['func']);  
-//     $output = [];  
-//     foreach ($post as $key => $value) {  
-//         list($id, $attribute) = explode('_', $key, 2);  
-//         if (!isset($output[$id])) {  
-//             $output[$id] = [];  
-//         }  
-//         if ($attribute === 'Size') {  
-//             $output[$id][$attribute] = (int)$value;  
-//         } elseif (strpos($attribute, 'bak') !== false) {  
-//             $output[$id][$attribute] = ($value === 'on')? true : false;  
-//         }elseif ($attribute === 'status') {
-//             $output[$id][$attribute] = $value;
-//         }elseif ($attribute === 'type') {
-//             $output[$id][$attribute] = $value;
-//         }
-//     }
-// foreach ($output as $key => $value) {  
-//     if ($value['status'] === "true") {  
-//         //echo "键: " . $key . ", Size: " . $value['Size'] . "\n";  
-//         if(strpos($key,'new-') !== false){
-//             if($value['type'] == 'ssd'){
-//                 $unit_price = $disk_ssd_unit_price;
-//             }elseif($value['type'] == 'hdd'){
-//                 $unit_price = $disk_hdd_unit_price;
-//             }elseif($value['type'] == 'chdd'){
-//                 $unit_price = $disk_chdd_unit_price;
-//             }
-//             if(isset($value['bak']) && $value['bak'] == true){
-//                 $newcost = $value['Size'] * ($unit_price + $disk_bak);
-//             }else{
-//                 $newcost = $value['Size'] * $unit_price;
-//             }
-//         }elseif(is_numeric($key)){
-//             $keys = array_column($res["data"]["EDiskList"], 'ID');
-//             $index = array_search($key, $keys);
-//             if($res["data"]["EDiskList"][$index]['DiskType'] == 'ssd'){
-//                 $unit_price = $disk_ssd_unit_price;
-//             }elseif($res["data"]["EDiskList"][$index]['DiskType'] == 'hdd'){
-//                 $unit_price = $disk_hdd_unit_price;
-//             }elseif($res["data"]["EDiskList"][$index]['DiskType'] == 'chdd'){
-//                 $unit_price = $disk_chdd_unit_price;
-//             }
-//             if($res["data"]["EDiskList"][$index]['Slot'] == 0){
-//                 $value['Size'] = $value['Size']-30;
-//             }
-//             if($res["data"]["EDiskList"][$index]["Backup"] == true){
-//                 $newcost = $value['Size'] * ($unit_price + $disk_bak);
-//             }else{
-//                 $newcost = $value['Size'] * $unit_price;
-//             }
-//         }else{
-//             return ["status" => "error", "msg" => "出现未知ID,请重试"];
-//         }
-//     }  
-//     $new_total_cost += $newcost;
-// }
-// $daysLeft = ($params['nextduedate'] - time()) / (60 * 60 * 24);  
-// if($daysLeft < 0){
-//     $day = 0;
-// }else{
-//     $day = $daysLeft;
-// }
-// $zzcost = ($new_total_cost/31)*$day-($total_cost/31)*$day;
-//     return ["status" => "success", "cost"=>round($zzcost, 1), "msg" => "获取成功"];
-// }
-
-// function rainyunrgs_edisk($params){
-// 	$vserverid = rainyunrgs_GetServerid($params);
-// 	if (empty($vserverid)) {
-// 	    return ["status" => "error", "msg" => "产品参数错误"];
-// 	}
-// 	if ($params["billingcycle"] == "ontrial"){
-// 	    return ["status" => "error", "msg" => "试用无法调整硬盘"];
-// 	}
-// 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-// 	$detail_url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid;
-// 	$res = rainyunrgs_Curl($detail_url, [], 10, "GET", $header);
-// 	$disk_ssd_unit_price = $params["configoptions"]["disk_ssd_unit_price"] ?: 0.4;
-// 	$disk_hdd_unit_price = $params["configoptions"]["disk_hdd_unit_price"] ?: 0.1;
-// 	$disk_chdd_unit_price = $params["configoptions"]["disk_chdd_unit_price"] ?: 0.2;
-// 	$disk_bak = $params["configoptions"]["disk_bak"] ?: 0.1;
-// foreach ($res["data"]["EDiskList"] as $disk) {  
-//     $disk_type = $disk['DiskType'];  
-//     $slot = $disk['Slot'];  
-//     $backup = $disk['Backup'];  
-//     if($slot == 0){
-//         $size = $disk['Size'] - 30;
-//     }else{
-//         $size = $disk['Size'];
-//     }
-//     if($disk_type == 'ssd'){
-//         if($backup == true){
-//             $cost = $size * ($disk_ssd_unit_price + $disk_bak);
-//         }else{
-//             $cost = $size * $disk_ssd_unit_price;
-//         }
-//     }elseif($disk_type == 'hdd'){  
-//         if($backup == true){
-//             $cost = $size * ($disk_hdd_unit_price + $disk_bak);
-//         }else{
-//             $cost = $size * $disk_hdd_unit_price;
-//         } 
-//     }elseif($disk_type == 'chdd'){
-//         if($backup == true){
-//             $cost = $size * ($disk_chdd_unit_price + $disk_bak);
-//         }else{
-//             $cost = $size * $disk_chdd_unit_price;
-//         } 
-//     }
-//     $total_cost += $cost;  
-// }
-//     $post = input('post.');
-//     unset($post['func']);  
-//     $output = [];  
-//     foreach ($post as $key => $value) {  
-//         list($id, $attribute) = explode('_', $key, 2);  
-//         if (!isset($output[$id])) {  
-//             $output[$id] = [];  
-//         }  
-//         if ($attribute === 'Size') {  
-//             $output[$id][$attribute] = (int)$value;  
-//         } elseif (strpos($attribute, 'bak') !== false) {  
-//             $output[$id][$attribute] = ($value === 'on')? true : false;  
-//         }elseif ($attribute === 'status') {
-//             $output[$id][$attribute] = $value;
-//         }elseif ($attribute === 'type') {
-//             $output[$id][$attribute] = $value;
-//         }
-//     }
-// foreach ($output as $key => $value) {  
-//     if ($value['status'] === "true") {  
-//         if(strpos($key,'new-') !== false){
-//             if($value['type'] == 'ssd'){
-//                 $unit_price = $disk_ssd_unit_price;
-//             }elseif($value['type'] == 'hdd'){
-//                 $unit_price = $disk_hdd_unit_price;
-//             }elseif($value['type'] == 'chdd'){
-//                 $unit_price = $disk_chdd_unit_price;
-//             }
-//             if(isset($value['bak']) && $value['bak'] == true){
-//                 $newcost = $value['Size'] * ($unit_price + $disk_bak);
-//             }else{
-//                 $newcost = $value['Size'] * $unit_price;
-//             }
-//         }elseif(is_numeric($key)){
-//             $keys = array_column($res["data"]["EDiskList"], 'ID');
-//             $index = array_search($key, $keys);
-//             if($res["data"]["EDiskList"][$index]['DiskType'] == 'ssd'){
-//                 $unit_price = $disk_ssd_unit_price;
-//             }elseif($res["data"]["EDiskList"][$index]['DiskType'] == 'hdd'){
-//                 $unit_price = $disk_hdd_unit_price;
-//             }elseif($res["data"]["EDiskList"][$index]['DiskType'] == 'chdd'){
-//                 $unit_price = $disk_chdd_unit_price;
-//             }
-//             if($res["data"]["EDiskList"][$index]['Slot'] == 0){
-//                 $value['Size'] = $value['Size']-30;
-//             }
-//             if($res["data"]["EDiskList"][$index]["Backup"] == true){
-//                 $newcost = $value['Size'] * ($unit_price + $disk_bak);
-//             }else{
-//                 $newcost = $value['Size'] * $unit_price;
-//             }
-//         }else{
-//             return ["status" => "error", "msg" => "出现未知ID,请重试"];
-//         }
-//     }  
-//     $new_total_cost += $newcost;
-// }
-// $daysLeft = ($params['nextduedate'] - time()) / (60 * 60 * 24);  
-// if($daysLeft < 0){
-//     $day = 0;
-// }else{
-//     $day = $daysLeft;
-// }
-// $zzcost = ($new_total_cost/31)*$day-($total_cost/31)*$day;
-// $zzcost = round($zzcost, 1);
-// $credit = Db::name('clients')  
-//             ->where('id', $params['uid'])  
-//             ->value('credit');
-// if($credit < $zzcost){
-//     return ['status'=>'error', 'msg'=>"余额不足，请先充值余额"];
-// }
-// $ml = [];
-//     foreach ($output as $key => $value){
-//         if ($value['status'] === "true"){
-//             if(strpos($key,'new-') !== false){
-//                 $ml[] = ["type"=>"create","action"=>["size_in_gb"=>$value['Size'],"disk_type"=>$value['type'],"backup"=>$value['bak'] ?: false ,"tag"=>""]];
-//             }elseif(is_numeric($key)){
-//                 $keys = array_column($res["data"]["EDiskList"], 'ID');
-//                 $index = array_search($key, $keys);
-//                 if($value['Size'] != $res["data"]["EDiskList"][$index]["Size"] || $value['bak'] != $res["data"]["EDiskList"][$index]["Backup"]){
-//                     $size_in_gb = $value['Size'] - $res["data"]["EDiskList"][$index]["Size"];
-//                     $ml[] = ["type"=>"expand","action"=>["edisk_id"=>$key,"size_in_gb"=>$size_in_gb ?: 0,"backup"=>$value['bak'] ?: false]];
-//                 }
-//             }else{
-//                 return ["status" => "error", "msg" => "出现未知ID,请重试"];
-//             }
-//         }else{
-//             if(is_numeric($key)){
-//                 $ml[] = ["type"=>"delete","action"=>["edisk_id"=>$key]];
-//             }
-//         }
-//     }
-//     if(empty($ml)){
-//         return ["status" => "error", "msg" => "调整了个寂寞"];
-//     }
-//     $wzml = ["actions"=>$ml];
-// 	$url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid ."/edisk";
-// 	$res = rainyunrgs_Curl($url, json_encode($wzml), 10, "POST", $header);
-// 	if($res["code"] == 200){
-// 	    Db::table(config('database.prefix') . 'clients')->where('id', $params['uid'])->setDec('credit', $zzcost);
-//         if ($params["billingcycle"] == "monthly") {
-//             $duration = 1;
-//         } elseif ($params["billingcycle"] == "annually") {
-//             $duration = 12;
-//         } elseif ($params["billingcycle"] == "quarterly") {
-//             $duration = 3;
-//         } elseif ($params["billingcycle"] == "semiannually") {
-//             $duration = 6;
-//         }
-//         $xxj = ($new_total_cost-$total_cost)*$duration;
-//         Db::table(config('database.prefix') . 'host')->where('id', $params['hostid'])->setInc('amount', $xxj);
-// 	    return ["status" => "success", "msg" => "调整成功"];
-// 	}else{
-// 	    return ["status" => "error", "msg" => $res["message"]];
-// 	}
-// }
-
-// function rainyunrgs_trafficlimit($params){
-// 	$vserverid = rainyunrgs_GetServerid($params);
-// 	if (empty($vserverid)) {
-// 	    return ["status" => "error", "msg" => "产品参数错误"];
-// 	}
-//     $post = input('post.');
-// 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-// 	$url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid ."/traffic/limit";
-// 	$data = ["day_traffic_in_gb"=>(int)$post["day_traffic_in_gb"],"traffic_limit"=>(int)$post["traffic_limit"]];
-// 	$res = rainyunrgs_Curl($url, json_encode($data), 10, "POST", $header);
-// 	if($res["code"] == 200){
-// 	    return ["status" => "success", "msg" => "成功"];
-// 	}else{
-// 	    return ["status" => "error", "msg" => $res["message"]];
-// 	}
-// }
-
-// function rainyunrgs_trafficcharge($params){
-// 	$vserverid = rainyunrgs_GetServerid($params);
-// 	if (empty($vserverid)) {
-// 	    return ["status" => "error", "msg" => "产品参数错误"];
-// 	}
-// 	$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $params["server_password"]];
-// 	$detail_url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid;
-// 	$res = rainyunrgs_Curl($detail_url, [], 10, "GET", $header);
-//     $post = input('post.');
-//     // $traffic300 = ($params["configoptions"]["traffic300"] ?: $res["data"]["Data"]["Plan"]["traffic_price"]["300"]) ?: 15;
-//     // $traffic1024 = ($params["configoptions"]["traffic1024"] ?: $res["data"]["Data"]["Plan"]["traffic_price"]["1024"]) ?: 35;
-//     ${"traffic".explode("|", $params["configoptions"]["trafficdiy1"])[0]}=explode("|", $params["configoptions"]["trafficdiy1"])[1];
-//     ${"traffic".explode("|", $params["configoptions"]["trafficdiy2"])[0]}=explode("|", $params["configoptions"]["trafficdiy2"])[1];
-//     ${"traffic".explode("|", $params["configoptions"]["trafficdiy3"])[0]}=explode("|", $params["configoptions"]["trafficdiy3"])[1];
-//     $traffic_in_gb = (int)$post["traffic_in_gb"];
-//     // if($traffic_in_gb == 300){
-//     //     $money = $traffic300;
-//     // }elseif($traffic_in_gb == 1024){
-//     //     $money = $traffic1024;
-//     // }else{
-// 	if(isset(${"traffic".$traffic_in_gb})){
-// 		$money = ${"traffic".$traffic_in_gb};
-// 	}elseif(array_key_exists($traffic_in_gb,$res["data"]["Data"]["Plan"]["traffic_price"])){
-// 		$money = $res["data"]["Data"]["Plan"]["traffic_price"]["$traffic_in_gb"];
-// 	}else{
-// 		return ["status" => "error", "msg" => "输入参数错误"];
-// 	}
-//     // }
-//     $credit = Db::name('clients')  
-//                 ->where('id', $params['uid'])  
-//                 ->value('credit');
-//     if($credit < $money){
-//         return ['status'=>'error', 'msg'=>"余额不足，请先充值余额"];
-//     }
-// 	$url = $params["server_host"] . "/product/" . $params["configoptions"]["type"] . "/" . $vserverid ."/traffic/charge";
-// 	$data = ["traffic_in_gb"=>$traffic_in_gb];
-// 	$res = rainyunrgs_Curl($url, json_encode($data), 10, "POST", $header);
-// 	if($res["code"] == 200){
-// 	    Db::table(config('database.prefix') . 'clients')->where('id', $params['uid'])->setDec('credit', $money);
-// 	    return ["status" => "success", "msg" => "成功"];
-// 	}else{
-// 	    return ["status" => "error", "msg" => $res["message"]];
-// 	}
-// }
 
 function rainyunrgs_FiveMinuteCron() {
 	$serverRows = \think\Db::name('servers')  
@@ -1189,7 +897,6 @@ function rainyunrgs_FiveMinuteCron() {
 					$memory = $product['memory'];
 					$net_in = $product['net_in'];
 					$net_out = $product['net_out'];
-					// $gpu_memory_size = $product['gpu_memory_size'];
 					$region = $product['region'];
 					break;
 				}
@@ -1207,18 +914,18 @@ function rainyunrgs_Curl($url = "", $data = [], $timeout = 30, $request = "POST"
 {
 	$curl = curl_init();
 	if ($request == "GET") {
-	// 	$s = "";
-	// 	if (!empty($data)) {
-	// 		foreach ($data as $k => $v) {
-	// 			$s .= $k . "=" . urlencode($v) . "&";
-	// 		}
-	// 	}
-	// 	if ($s) {
-	// 		$s = "?" . trim($s, "&");
-	// 	}
-	// 	curl_setopt($curl, CURLOPT_URL, $url . $s);
-	// } else {
-		curl_setopt($curl, CURLOPT_URL, $url . "?" .http_build_query($data));
+		$s = "";
+		if (!empty($data)) {
+			foreach ($data as $k => $v) {
+				$s .= $k . "=" . urlencode($v) . "&";
+			}
+		}
+		if ($s) {
+			$s = "?" . trim($s, "&");
+		}
+		curl_setopt($curl, CURLOPT_URL, $url . $s);
+	} else {
+		curl_setopt($curl, CURLOPT_URL, $url);
 	}
 	curl_setopt($curl, CURLOPT_TIMEOUT, $timeout);
 	curl_setopt($curl, CURLOPT_USERAGENT, "Mofang");
@@ -1230,20 +937,20 @@ function rainyunrgs_Curl($url = "", $data = [], $timeout = 30, $request = "POST"
 		curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
 		curl_setopt($curl, CURLOPT_HTTPGET, 1);
 	}
-	if (strtoupper($request) == "POST"  || strtoupper($request) == "PATCH") {
+	if (strtoupper($request) == "POST") {
 		curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
 		curl_setopt($curl, CURLOPT_POST, 1);
 		if (is_array($data)) {
-			curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($data));
+			curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($data));
 		} else {
 			curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
 		}
 	}
-	if (strtoupper($request) == "PUT" || strtoupper($request) == "DELETE") {
+	if (strtoupper($request) == "PUT" || strtoupper($request) == "DELETE" || strtoupper($request) == "PATCH") {
 		curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
 		curl_setopt($curl, CURLOPT_CUSTOMREQUEST, strtoupper($request));
 		if (is_array($data)) {
-			curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($data));
+			curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($data));
 		} else {
 			curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
 		}

@@ -75,7 +75,7 @@
     {foreach $list as $key=>$vo }
     <tr>
       <td>{$vo.ID}</td>
-      <td>{$ip}:{$vo.PortOut}</td>
+      <td>{$ip?:$domain}:{$vo.PortOut}</td>
       <td>{$vo.PortIn}</td>
       <td>{$vo.PortType}</td>
       <td style="text-align: center;">
