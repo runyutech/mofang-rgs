@@ -534,6 +534,8 @@ function rainyunrgs_CreateAccount($params)
 		"os_id"=>(int)$params["configoptions"]["os_id"]?:0,
 		"egg_type_id"=>(int)$params["configoptions"]["egg_type_id"]?:0,
 		"panel_user"=>null,
+		"plan_id"=>(int)$params["configoptions"]["plan_id"]?:0,
+		"subtype"=>$params["configoptions"]["subtype"],
 		"with_eip_num"=>(int)$params["configoptions"]["with_eip_num"]?:0,
 		"with_eip_flags"=>"",
 		"with_eip_type"=>"",
@@ -543,7 +545,7 @@ function rainyunrgs_CreateAccount($params)
 		"online_mode"=>filter_var($params["configoptions"]["online_mode"], FILTER_VALIDATE_BOOLEAN),
 	];
 	if($params["configoptions"]["subtype"] == "k8s_panel"){
-		$post_data["config"]["allocation"] = (int)$params["configoptions"]["allocation"];
+		$post_data["config"]["allocation"] = (int)$params["configoptions"]["allocation"]?:5;
 		$post_data["config"]["database"] = 0;
 		$post_data["config"]["backup"] = 0;
 	}
@@ -867,7 +869,7 @@ function rainyunrgs_FiveMinuteCron() {
 	foreach ($serverRows as $serverRow) {
 		$productRows = \think\Db::name('products')  
 		                ->where('server_group', $serverRow['gid'])  
-		                ->field('id, config_option3')  
+		                ->field('id, config_option9')  
 		                ->select();
 		if (!empty($productRows)) {
 			$result[] = [  
@@ -886,7 +888,7 @@ function rainyunrgs_FiveMinuteCron() {
 		$gid = $server['gid'];
 		foreach ($item['products'] as $product) {
 			$id = $product['id'];
-			$pid = $product['config_option3'];
+			$pid = $product['config_option9'];
 			$url = $host . "/product/rgs/plans";
 			$header = ["Content-Type: application/json; charset=utf-8", "x-api-key: " . $password];
 			$res = rainyunrgs_Curl($url, null, 30, "GET", $header)['data'];
