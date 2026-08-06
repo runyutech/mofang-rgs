@@ -689,11 +689,11 @@
                         filterFiles();
                         updateFileCount();
                     } else {
-                        alert('加载文件列表失败: ' + response.message);
+                        Swal.fire({ type: 'error', title: '加载文件列表失败: ' + response.message });
                     }
                 },
                 error: function(xhr, status, error) {
-                    alert('加载文件列表失败: ' + error);
+                    Swal.fire({ type: 'error', title: '加载文件列表失败: ' + error });
                 }
             });
         }
@@ -970,7 +970,7 @@
         // 编辑文件
         function editFile(file) {
             if (file.is_dir) {
-                alert('文件夹不能编辑');
+                Swal.fire('文件夹不能编辑');
                 return;
             }
             
@@ -1002,14 +1002,14 @@
                             $('#fileContent').val(response.data.data);
                             $('#editModal').modal('show');
                         } else {
-                            alert('文件不可编辑');
+                            Swal.fire('文件不可编辑');
                         }
                     } else {
-                        alert('加载文件失败: ' + response.message);
+                        Swal.fire({ type: 'error', title: '加载文件失败: ' + response.message });
                     }
                 },
                 error: function(xhr, status, error) {
-                    alert('加载文件失败: ' + error);
+                    Swal.fire({ type: 'error', title: '加载文件失败: ' + error });
                 }
             });
         }
@@ -1037,15 +1037,15 @@
                 }),
                 success: function(response) {
                     if (response.code === 200) {
-                        alert('保存成功');
+                        Swal.fire({ type: 'success', title: '保存成功' });
                         $('#editModal').modal('hide');
                         loadFiles();
                     } else {
-                        alert('保存失败: ' + response.message);
+                        Swal.fire({ type: 'error', title: '保存失败: ' + response.message });
                     }
                 },
                 error: function(xhr, status, error) {
-                    alert('保存失败: ' + error);
+                    Swal.fire({ type: 'error', title: '保存失败: ' + error });
                 }
             });
         }
@@ -1067,7 +1067,7 @@
             const newName = $('#newFileName').val().trim();
             
             if (!newName) {
-                alert('请输入新名称');
+                Swal.fire('请输入新名称');
                 return;
             }
             
@@ -1091,15 +1091,15 @@
                 }),
                 success: function(response) {
                     if (response.code === 200) {
-                        alert('重命名成功');
+                        Swal.fire({ type: 'success', title: '重命名成功' });
                         $('#renameModal').modal('hide');
                         loadFiles();
                     } else {
-                        alert('重命名失败: ' + response.message);
+                        Swal.fire({ type: 'error', title: '重命名失败: ' + response.message });
                     }
                 },
                 error: function(xhr, status, error) {
-                    alert('重命名失败: ' + error);
+                    Swal.fire({ type: 'error', title: '重命名失败: ' + error });
                 }
             });
         }
@@ -1109,7 +1109,7 @@
             fileclipboard.action = 'copy';
             fileclipboard.files = [file.fullname];
             $('#pasteBtnContainer').show();
-            alert(`已复制: ${file.name}`);
+            Swal.fire({ type: 'success', title: `已复制: ${file.name}` });
         }
         
         // 剪切文件
@@ -1117,7 +1117,7 @@
             fileclipboard.action = 'move';
             fileclipboard.files = [file.fullname];
             $('#pasteBtnContainer').show();
-            alert(`已剪切: ${file.name}`);
+            Swal.fire({ type: 'success', title: `已剪切: ${file.name}` });
         }
         
         // 粘贴文件
@@ -1152,19 +1152,40 @@
             Promise.all(promises).then(responses => {
                 const allSuccess = responses.every(r => r.code === 200);
                 if (allSuccess) {
-                    alert('粘贴成功');
+                    Swal.fire({ type: 'success', title: '粘贴成功' });
                     fileclipboard.files = [];
                     $('#pasteBtnContainer').hide();
                     loadFiles();
                 } else {
-                    alert('粘贴失败');
+                    Swal.fire({ type: 'error', title: '粘贴失败' });
                 }
             }).catch(error => {
-                alert('粘贴失败: ' + error);
+                Swal.fire({ type: 'error', title: '粘贴失败: ' + error });
             });
         }
         
-        // 下载文件
+        // 下载文件（先请求获取跳转地址，再打开新窗口跳转）
+        function downloadPath(path) {
+            $.ajax({
+                url: `${API_BASE}/download?path=${encodeURIComponent(path)}`,
+                method: 'GET',
+                headers: {
+                    'app-token': APP_TOKEN
+                },
+                success: function(response) {
+                    if (response.code === 200 && response.data) {
+                        const downloadBase = API_BASE.replace(/\/file_manage$/, '');
+                        window.open(downloadBase + response.data, '_blank');
+                    } else {
+                        Swal.fire({ type: 'error', title: '获取下载链接失败: ' + (response.message || '未知错误') });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    Swal.fire({ type: 'error', title: '获取下载链接失败: ' + error });
+                }
+            });
+        }
+        
         function downloadFile(file) {
             if (file.is_dir) {
                 downloadFolderAsZip(file);
@@ -1172,8 +1193,7 @@
             }
             
             // 直接下载文件
-            const downloadUrl = `${API_BASE}/download?path=${encodeURIComponent(file.fullname)}`;
-            window.open(downloadUrl, '_blank');
+            downloadPath(file.fullname);
         }
         
         function downloadFileByIndex(index) {
@@ -1211,8 +1231,7 @@
                             currentPath + '/' + zipFileName;
                         
                         setTimeout(() => {
-                            const downloadUrl = `${API_BASE}/download?path=${encodeURIComponent(zipPath)}`;
-                            window.open(downloadUrl, '_blank');
+                            downloadPath(zipPath);
                             
                             // 可选：删除压缩文件
                             setTimeout(() => {
@@ -1220,11 +1239,11 @@
                             }, 30000); // 30秒后删除
                         }, 1000); // 等待1秒让压缩完成
                     } else {
-                        alert('压缩失败: ' + response.message);
+                        Swal.fire({ type: 'error', title: '压缩失败: ' + response.message });
                     }
                 },
                 error: function(xhr, status, error) {
-                    alert('压缩失败: ' + error);
+                    Swal.fire({ type: 'error', title: '压缩失败: ' + error });
                 }
             });
         }
@@ -1232,22 +1251,33 @@
         // 删除ZIP文件
         function deleteZipFile(zipPath) {
             $.ajax({
-                url: `${API_BASE}/delete`,
+                url: `${API_BASE}/delete?path=${encodeURIComponent(zipPath)}`,
                 method: 'DELETE',
                 headers: {
                     'app-token': APP_TOKEN
-                },
-                data: {
-                    path: zipPath
                 }
             });
         }
         
         // 压缩文件
         function zipFile(file) {
-            const zipFileName = prompt('请输入压缩文件名（包含.zip扩展名）:', file.name + '.zip');
-            if (!zipFileName) return;
-            
+            Swal.fire({
+                title: '请输入压缩文件名',
+                input: 'text',
+                inputValue: file.name + '.zip',
+                showCancelButton: true,
+                confirmButtonText: '确定',
+                cancelButtonText: '取消',
+                inputValidator: (value) => {
+                    if (!value) return '请输入文件名';
+                }
+            }).then((result) => {
+                if (!result.value || !result.value) return;
+                zipFileSubmit(file, result.value);
+            });
+        }
+        
+        function zipFileSubmit(file, zipFileName) {
             $.ajax({
                 url: `${API_BASE}/zip`,
                 method: 'POST',
@@ -1262,14 +1292,14 @@
                 }),
                 success: function(response) {
                     if (response.code === 200) {
-                        alert('压缩成功');
+                        Swal.fire({ type: 'success', title: '压缩成功' });
                         loadFiles();
                     } else {
-                        alert('压缩失败: ' + response.message);
+                        Swal.fire({ type: 'error', title: '压缩失败: ' + response.message });
                     }
                 },
                 error: function(xhr, status, error) {
-                    alert('压缩失败: ' + error);
+                    Swal.fire({ type: 'error', title: '压缩失败: ' + error });
                 }
             });
         }
@@ -1277,12 +1307,24 @@
         // 解压文件
         function unzipFile(file) {
             if (!file.name.endsWith('.zip')) {
-                alert('只能解压ZIP文件');
+                Swal.fire('只能解压ZIP文件');
                 return;
             }
             
-            if (!confirm(`确定要解压 ${file.name} 到当前目录吗？`)) return;
-            
+            Swal.fire({
+                title: '确定要解压吗？',
+                text: `确定要解压 ${file.name} 到当前目录吗？`,
+                type: 'question',
+                showCancelButton: true,
+                confirmButtonText: '确定',
+                cancelButtonText: '取消'
+            }).then((result) => {
+                if (!result.value) return;
+                unzipSubmit(file);
+            });
+        }
+        
+        function unzipSubmit(file) {
             $.ajax({
                 url: `${API_BASE}/unzip`,
                 method: 'POST',
@@ -1296,14 +1338,14 @@
                 }),
                 success: function(response) {
                     if (response.code === 200) {
-                        alert('解压成功');
+                        Swal.fire({ type: 'success', title: '解压成功' });
                         loadFiles();
                     } else {
-                        alert('解压失败: ' + response.message);
+                        Swal.fire({ type: 'error', title: '解压失败: ' + response.message });
                     }
                 },
                 error: function(xhr, status, error) {
-                    alert('解压失败: ' + error);
+                    Swal.fire({ type: 'error', title: '解压失败: ' + error });
                 }
             });
         }
@@ -1377,42 +1419,51 @@
                 }),
                 success: function(response) {
                     if (response.code === 200) {
-                        alert('权限修改成功');
+                        Swal.fire({ type: 'success', title: '权限修改成功' });
                         $('#chmodModal').modal('hide');
                         loadFiles();
                     } else {
-                        alert('权限修改失败: ' + response.message);
+                        Swal.fire({ type: 'error', title: '权限修改失败: ' + response.message });
                     }
                 },
                 error: function(xhr, status, error) {
-                    alert('权限修改失败: ' + error);
+                    Swal.fire({ type: 'error', title: '权限修改失败: ' + error });
                 }
             });
         }
         
         // 删除文件
         function deleteFile(file) {
-            if (!confirm(`确定要删除 ${file.name} 吗？`)) return;
-            
+            Swal.fire({
+                title: '确定要删除吗？',
+                text: `确定要删除 ${file.name} 吗？`,
+                type: 'warning',
+                showCancelButton: true,
+                confirmButtonText: '确定',
+                cancelButtonText: '取消'
+            }).then((result) => {
+                if (!result.value) return;
+                deleteSubmit(file.fullname);
+            });
+        }
+        
+        function deleteSubmit(path) {
             $.ajax({
-                url: `${API_BASE}/delete`,
+                url: `${API_BASE}/delete?path=${encodeURIComponent(path)}`,
                 method: 'DELETE',
                 headers: {
                     'app-token': APP_TOKEN
                 },
-                data: {
-                    path: file.fullname
-                },
                 success: function(response) {
                     if (response.code === 200) {
-                        alert('删除成功');
+                        Swal.fire({ type: 'success', title: '删除成功' });
                         loadFiles();
                     } else {
-                        alert('删除失败: ' + response.message);
+                        Swal.fire({ type: 'error', title: '删除失败: ' + response.message });
                     }
                 },
                 error: function(xhr, status, error) {
-                    alert('删除失败: ' + error);
+                    Swal.fire({ type: 'error', title: '删除失败: ' + error });
                 }
             });
         }
@@ -1450,8 +1501,7 @@
                             currentPath + '/' + zipFileName;
                         
                         setTimeout(() => {
-                            const downloadUrl = `${API_BASE}/download?path=${encodeURIComponent(zipPath)}`;
-                            window.open(downloadUrl, '_blank');
+                            downloadPath(zipPath);
                             
                             // 可选：删除压缩文件
                             setTimeout(() => {
@@ -1459,11 +1509,11 @@
                             }, 30000);
                         }, 1000);
                     } else {
-                        alert('压缩失败: ' + response.message);
+                        Swal.fire({ type: 'error', title: '压缩失败: ' + response.message });
                     }
                 },
                 error: function(xhr, status, error) {
-                    alert('压缩失败: ' + error);
+                    Swal.fire({ type: 'error', title: '压缩失败: ' + error });
                 }
             });
         }
@@ -1471,9 +1521,23 @@
         function batchZipOnly() {
             if (selectedFiles.size === 0) return;
             
-            const zipFileName = prompt('请输入压缩文件名（包含.zip扩展名）:', 'batch_files.zip');
-            if (!zipFileName) return;
-            
+            Swal.fire({
+                title: '请输入压缩文件名',
+                input: 'text',
+                inputValue: 'batch_files.zip',
+                showCancelButton: true,
+                confirmButtonText: '确定',
+                cancelButtonText: '取消',
+                inputValidator: (value) => {
+                    if (!value) return '请输入文件名';
+                }
+            }).then((result) => {
+                if (!result.value || !result.value) return;
+                batchZipOnlySubmit(result.value);
+            });
+        }
+        
+        function batchZipOnlySubmit(zipFileName) {
             const paths = Array.from(selectedFiles);
             
             $.ajax({
@@ -1490,14 +1554,14 @@
                 }),
                 success: function(response) {
                     if (response.code === 200) {
-                        alert('压缩成功');
+                        Swal.fire({ type: 'success', title: '压缩成功' });
                         loadFiles();
                     } else {
-                        alert('压缩失败: ' + response.message);
+                        Swal.fire({ type: 'error', title: '压缩失败: ' + response.message });
                     }
                 },
                 error: function(xhr, status, error) {
-                    alert('压缩失败: ' + error);
+                    Swal.fire({ type: 'error', title: '压缩失败: ' + error });
                 }
             });
         }
@@ -1508,7 +1572,7 @@
             fileclipboard.action = 'copy';
             fileclipboard.files = Array.from(selectedFiles);
             $('#pasteBtnContainer').show();
-            alert(`已复制 ${selectedFiles.size} 个文件/文件夹`);
+            Swal.fire({ type: 'success', title: `已复制 ${selectedFiles.size} 个文件/文件夹` });
         }
         
         function batchCut() {
@@ -1517,38 +1581,47 @@
             fileclipboard.action = 'move';
             fileclipboard.files = Array.from(selectedFiles);
             $('#pasteBtnContainer').show();
-            alert(`已剪切 ${selectedFiles.size} 个文件/文件夹`);
+            Swal.fire({ type: 'success', title: `已剪切 ${selectedFiles.size} 个文件/文件夹` });
         }
         
         function batchDelete() {
             if (selectedFiles.size === 0) return;
             
-            if (!confirm(`确定要删除选中的 ${selectedFiles.size} 个文件/文件夹吗？`)) return;
-            
+            Swal.fire({
+                title: '确定要删除吗？',
+                text: `确定要删除选中的 ${selectedFiles.size} 个文件/文件夹吗？`,
+                type: 'warning',
+                showCancelButton: true,
+                confirmButtonText: '确定',
+                cancelButtonText: '取消'
+            }).then((result) => {
+                if (!result.value) return;
+                batchDeleteSubmit();
+            });
+        }
+        
+        function batchDeleteSubmit() {
             const promises = Array.from(selectedFiles).map(path => {
                 return $.ajax({
-                    url: `${API_BASE}/delete`,
+                    url: `${API_BASE}/delete?path=${encodeURIComponent(path)}`,
                     method: 'DELETE',
                     headers: {
                         'app-token': APP_TOKEN
                     },
-                    data: {
-                        path: path
-                    }
                 });
             });
             
             Promise.all(promises).then(responses => {
                 const allSuccess = responses.every(r => r.code === 200);
                 if (allSuccess) {
-                    alert('删除成功');
+                    Swal.fire({ type: 'success', title: '删除成功' });
                     selectedFiles.clear();
                     loadFiles();
                 } else {
-                    alert('部分文件删除失败');
+                    Swal.fire({ type: 'error', title: '部分文件删除失败' });
                 }
             }).catch(error => {
-                alert('删除失败: ' + error);
+                Swal.fire({ type: 'error', title: '删除失败: ' + error });
             });
         }
         
@@ -1605,11 +1678,11 @@
                         }
                         updateUploadQueue();
                     } else {
-                        alert('创建文件夹失败: ' + response.message);
+                        Swal.fire({ type: 'error', title: '创建文件夹失败: ' + response.message });
                     }
                 },
                 error: function(xhr, status, error) {
-                    alert('创建文件夹失败: ' + error);
+                    Swal.fire({ type: 'error', title: '创建文件夹失败: ' + error });
                 }
             });
         }
@@ -1669,7 +1742,7 @@
         function startUpload() {
             if (isUploading) return;
             if (uploadQueue.length === 0) {
-                alert('没有文件需要上传');
+                Swal.fire('没有文件需要上传');
                 return;
             }
             
@@ -1686,7 +1759,7 @@
                 isUploading = false;
                 $('#uploadProgressContainer').hide();
                 $('#uploadProgress').css('width', '0%');
-                alert('上传完成');
+                Swal.fire({ type: 'success', title: '上传完成' });
                 loadFiles();
                 return;
             }
@@ -1754,7 +1827,7 @@
         function createNewFile() {
             const fileName = $('#newFileNameInput').val().trim();
             if (!fileName) {
-                alert('请输入文件名');
+                Swal.fire('请输入文件名');
                 return;
             }
             
@@ -1781,15 +1854,15 @@
                 contentType: false,
                 success: function(response) {
                     if (response.code === 200) {
-                        alert('文件创建成功');
+                        Swal.fire({ type: 'success', title: '文件创建成功' });
                         $('#newFileModal').modal('hide');
                         loadFiles();
                     } else {
-                        alert('文件创建失败: ' + response.message);
+                        Swal.fire({ type: 'error', title: '文件创建失败: ' + response.message });
                     }
                 },
                 error: function(xhr, status, error) {
-                    alert('文件创建失败: ' + error);
+                    Swal.fire({ type: 'error', title: '文件创建失败: ' + error });
                 }
             });
         }
@@ -1803,7 +1876,7 @@
         function createNewFolder() {
             const folderName = $('#newFolderNameInput').val().trim();
             if (!folderName) {
-                alert('请输入文件夹名');
+                Swal.fire('请输入文件夹名');
                 return;
             }
             
@@ -1823,15 +1896,15 @@
                 }),
                 success: function(response) {
                     if (response.code === 200) {
-                        alert('文件夹创建成功');
+                        Swal.fire({ type: 'success', title: '文件夹创建成功' });
                         $('#newFolderModal').modal('hide');
                         loadFiles();
                     } else {
-                        alert('文件夹创建失败: ' + response.message);
+                        Swal.fire({ type: 'error', title: '文件夹创建失败: ' + response.message });
                     }
                 },
                 error: function(xhr, status, error) {
-                    alert('文件夹创建失败: ' + error);
+                    Swal.fire({ type: 'error', title: '文件夹创建失败: ' + error });
                 }
             });
         }
